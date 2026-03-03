@@ -1,0 +1,10 @@
+.env.local
+.env
+node_modules/
+dist/
+.DS_Store
+*.log
+.vercel
+Openclaw configuration for reference/
+.openclaw
+openapi.json

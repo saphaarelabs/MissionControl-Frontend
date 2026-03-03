@@ -1,0 +1,38 @@
+{
+  "name": "aws",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "backend": "node server/backend/index.js",
+    "backend:dev": "nodemon server/backend/index.js"
+  },
+  "dependencies": {
+    "@clerk/backend": "^2.7.0",
+    "@clerk/clerk-react": "^5.60.1",
+    "@noble/ed25519": "^3.0.0",
+    "@supabase/supabase-js": "^2.95.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^3.0.5",
+    "lucide-react": "^0.564.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.13.0",
+    "remark-gfm": "^4.0.1",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@vitejs/plugin-react": "^5.1.4",
+    "nodemon": "^3.1.14",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.1"
+  }
+}
