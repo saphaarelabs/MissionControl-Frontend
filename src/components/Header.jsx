@@ -34,10 +34,10 @@ const Header = () => {
 
     const fetchAgentCount = async () => {
         try {
-            const response = await apiAuthFetch(`/api/agents?t=${Date.now()}`);
+            const response = await apiAuthFetch(`/api/subagents?t=${Date.now()}`);
             if (!response.ok) return;
             const data = await response.json().catch(() => null);
-            const count = Array.isArray(data?.agents) ? data.agents.length : 0;
+            const count = Array.isArray(data?.subagents) ? data.subagents.length : 0;
             setAgentCount(count);
         } catch {
             // ignore
@@ -74,7 +74,7 @@ const Header = () => {
 
                         <div className="hidden rounded-lg bg-blue-600/90 px-3 py-1 sm:block">
                             <span className="text-sm font-semibold tabular-nums">
-                                {agentCount} Agent{agentCount !== 1 ? 's' : ''}
+                                {agentCount} Sub-Agent{agentCount !== 1 ? 's' : ''}
                             </span>
                         </div>
                     </div>
