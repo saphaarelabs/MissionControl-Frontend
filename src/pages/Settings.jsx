@@ -337,6 +337,9 @@ const ModelsTab = () => {
         }
     };
 
+    const [oauthFlow, setOauthFlow] = useState({ active: false, authUrl: '', instructions: [] });
+    const [callbackUrl, setCallbackUrl] = useState('');
+
     const handleOAuthLogin = async () => {
         setSaving(true);
         setError('');
@@ -354,13 +357,64 @@ const ModelsTab = () => {
                 throw new Error(data.error || 'Failed to start OAuth flow');
             }
             
-            // Open OAuth window
-            window.location.href = data.authUrl;
+            // Check if this is OpenAI Codex with broken redirect pattern
+            if (data.instructions && data.instructions.length > 0) {
+                // Show manual URL entry flow
+                setOauthFlow({
+                    active: true,
+                    authUrl: data.authUrl,
+                    instructions: data.instructions,
+                    state: data.state
+                });
+            } else {
+                // Direct redirect for providers with working OAuth
+                window.location.href = data.authUrl;
+            }
         } catch (e) {
             setError(e.message);
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleManualOAuthCallback = async () => {
+        if (!callbackUrl.trim()) {
+            setError('Please enter the callback URL from the error page');
+            return;
+        }
+        
+        setSaving(true);
+        setError('');
+        try {
+            const response = await apiAuthFetch('/api/providers/oauth/callback-manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    callbackUrl: callbackUrl.trim()
+                })
+            });
+            
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to process OAuth callback');
+            }
+            
+            setStatus(data.message || `${providerKey} configured successfully!`);
+            setOauthFlow({ active: false, authUrl: '', instructions: [] });
+            setCallbackUrl('');
+            loadGatewayModels(); // Refresh models list
+            
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const cancelOAuthFlow = () => {
+        setOauthFlow({ active: false, authUrl: '', instructions: [] });
+        setCallbackUrl('');
+        setSaving(false);
     };
 
     const startPluginOAuth = async (provider, region = 'global') => {
@@ -658,14 +712,76 @@ const ModelsTab = () => {
                             )}
                         </div>
                     ) : authMethod === 'oauth' ? (
-                        <button
-                            type="button"
-                            onClick={handleOAuthLogin}
-                            disabled={saving}
-                            className={`rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING} md:col-span-3`}
-                        >
-                            {saving ? 'Starting OAuth...' : `Login with ${providerCatalog.find(p => p.key === providerKey)?.label || providerKey}`}
-                        </button>
+                        <div className="md:col-span-3">
+                            {!oauthFlow.active ? (
+                                <button
+                                    type="button"
+                                    onClick={handleOAuthLogin}
+                                    disabled={saving}
+                                    className={`w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                                >
+                                    {saving ? 'Starting OAuth...' : `Login with ${providerCatalog.find(p => p.key === providerKey)?.label || providerKey}`}
+                                </button>
+                            ) : (
+                                <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-medium text-blue-900">OAuth Authentication in Progress</h4>
+                                        <button
+                                            type="button"
+                                            onClick={cancelOAuthFlow}
+                                            className="text-blue-600 hover:text-blue-800 text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="space-y-3">
+                                        <div>
+                                            <a
+                                                href={oauthFlow.authUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+                                            >
+                                                🚀 Open OAuth Login
+                                            </a>
+                                        </div>
+                                        
+                                        <div className="text-sm text-blue-800">
+                                            <p className="font-medium mb-2">Follow these steps:</p>
+                                            <ol className="list-decimal list-inside space-y-1 text-xs">
+                                                {oauthFlow.instructions.map((instruction, i) => (
+                                                    <li key={i}>{instruction}</li>
+                                                ))}
+                                            </ol>
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                            <label htmlFor="callbackUrl" className="block text-sm font-medium text-blue-900">
+                                                Paste the full URL from the error page:
+                                            </label>
+                                            <textarea
+                                                id="callbackUrl"
+                                                value={callbackUrl}
+                                                onChange={(e) => setCallbackUrl(e.target.value)}
+                                                placeholder="http://127.0.0.1:1455/auth/callback?code=..."
+                                                rows={3}
+                                                className="w-full rounded-md border border-blue-300 px-3 py-2 text-xs font-mono shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        
+                                        <button
+                                            type="button"
+                                            onClick={handleManualOAuthCallback}
+                                            disabled={saving || !callbackUrl.trim()}
+                                            className="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {saving ? 'Processing...' : 'Complete Authentication'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <>
                             <input
