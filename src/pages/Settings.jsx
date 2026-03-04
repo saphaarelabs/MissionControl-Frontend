@@ -102,6 +102,18 @@ const ModelsTab = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [status, setStatus] = useState('');
+    
+    // Plugin OAuth state
+    const [pluginOAuth, setPluginOAuth] = useState({
+        isActive: false,
+        provider: null,
+        userCode: null,
+        verificationUri: null,
+        deviceCode: null,
+        expiresIn: 0,
+        interval: 5,
+        timeRemaining: 0
+    });
 
     const loadCatalog = async () => {
         try {
@@ -185,6 +197,22 @@ const ModelsTab = () => {
         loadCatalog();
         loadConfig();
         loadGatewayModels();
+        
+        // Handle OAuth callback parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const oauthError = urlParams.get('oauth_error');
+        const oauthSuccess = urlParams.get('oauth_success');
+        
+        if (oauthError) {
+            setError(`OAuth Error: ${oauthError}`);
+            // Clean up URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (oauthSuccess) {
+            setStatus(`Successfully authenticated with ${oauthSuccess}!`);
+            loadGatewayModels(); // Refresh models list
+            // Clean up URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }, []);
 
     useEffect(() => {
@@ -195,11 +223,23 @@ const ModelsTab = () => {
         }
     }, [providerKey, providerCatalog]);
 
+    // Cleanup plugin OAuth timers on unmount
+    useEffect(() => {
+        return () => {
+            if (pluginOAuth.isActive) {
+                setPluginOAuth({ isActive: false, provider: null });
+            }
+        };
+    }, []);
+
     const getAuthLabel = (method) => {
         const provider = providerCatalog.find(p => p.key === providerKey);
         if (provider?.authLabels?.[method]) return provider.authLabels[method];
         if (method === 'api_key') return 'API Key';
         if (method === 'paste_token') return 'Paste Token';
+        if (method === 'setup_token') return 'Setup Token';
+        if (method === 'oauth') return 'OAuth Login';
+        if (method === 'plugin_oauth') return 'Plugin OAuth';
         return method;
     };
 
@@ -297,6 +337,129 @@ const ModelsTab = () => {
         }
     };
 
+    const handleOAuthLogin = async () => {
+        setSaving(true);
+        setError('');
+        setStatus('');
+        try {
+            const response = await apiAuthFetch('/api/providers/oauth/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider: providerKey
+                })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to start OAuth flow');
+            }
+            
+            // Open OAuth window
+            window.location.href = data.authUrl;
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const startPluginOAuth = async (provider, region = 'global') => {
+        setSaving(true);
+        setError('');
+        setStatus('');
+        try {
+            const response = await apiAuthFetch('/api/providers/plugin-oauth/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider, region })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setPluginOAuth({
+                    isActive: true,
+                    provider,
+                    userCode: data.userCode,
+                    verificationUri: data.verificationUri,
+                    deviceCode: data.deviceCode,
+                    expiresIn: data.expiresIn,
+                    interval: data.interval,
+                    timeRemaining: data.expiresIn
+                });
+                
+                // Start polling and countdown
+                pollPluginOAuth(data.deviceCode, data.interval);
+                startCountdown(data.expiresIn);
+            } else {
+                const data = await response.json().catch(() => ({}));
+                throw new Error(data.error || 'Failed to start plugin OAuth');
+            }
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const pollPluginOAuth = async (deviceCode, interval) => {
+        const poll = async () => {
+            try {
+                const response = await apiAuthFetch('/api/providers/plugin-oauth/poll', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceCode })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    setPluginOAuth({ isActive: false, provider: null });
+                    setStatus(`Successfully authenticated with ${result.provider}!`);
+                    loadGatewayModels(); // Refresh provider list
+                } else if (result.status === 'pending') {
+                    setTimeout(poll, interval * 1000);
+                } else if (result.status === 'slow_down') {
+                    setTimeout(poll, (interval + 2) * 1000);
+                } else if (response.ok) {
+                    // Continue polling for other statuses
+                    setTimeout(poll, interval * 1000);
+                } else {
+                    // Error occurred
+                    setError(result.error || 'Plugin OAuth failed');
+                    setPluginOAuth({ isActive: false, provider: null });
+                }
+            } catch (error) {
+                console.error('Plugin OAuth polling failed:', error);
+                setError('Plugin OAuth polling failed');
+                setPluginOAuth({ isActive: false, provider: null });
+            }
+        };
+        
+        setTimeout(poll, interval * 1000);
+    };
+
+    const startCountdown = (totalSeconds) => {
+        const updateCountdown = () => {
+            setPluginOAuth(prev => {
+                if (!prev.isActive || prev.timeRemaining <= 0) {
+                    return { ...prev, isActive: false, provider: null };
+                }
+                return { ...prev, timeRemaining: prev.timeRemaining - 1 };
+            });
+        };
+        
+        const countdownInterval = setInterval(updateCountdown, 1000);
+        
+        setTimeout(() => {
+            clearInterval(countdownInterval);
+            setPluginOAuth(prev => ({ ...prev, isActive: false, provider: null }));
+        }, totalSeconds * 1000);
+    };
+
+    const cancelPluginOAuth = () => {
+        setPluginOAuth({ isActive: false, provider: null });
+    };
+
     const handleSaveCustomProvider = async () => {
         setSaving(true);
         setError('');
@@ -391,35 +554,150 @@ const ModelsTab = () => {
                     ))}
                 </div>
 
+                {/* Show provider description and auth method info */}
+                {(() => {
+                    const provider = providerCatalog.find(p => p.key === providerKey);
+                    if (!provider?.description) return null;
+                    
+                    return (
+                        <div className="mb-3 rounded-lg bg-blue-50 border border-blue-200 p-3">
+                            <p className="text-sm text-blue-800">
+                                <strong>{provider.label}:</strong> {provider.description}
+                            </p>
+                            {authMethod === 'setup_token' && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                    Run <code className="bg-blue-100 px-1 rounded">claude setup-token</code> in terminal, then paste the token here.
+                                </p>
+                            )}
+                            {authMethod === 'oauth' && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                    Only available for OpenAI Codex - uses your ChatGPT credentials.
+                                </p>
+                            )}
+                            {authMethod === 'plugin_oauth' && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                    Plugin-based OAuth for {providerKey === 'minimax-portal' ? 'MiniMax' : providerKey === 'qwen-portal' ? 'Qwen' : providerKey}. 
+                                    You'll need to visit a verification URL and enter a code.
+                                </p>
+                            )}
+                        </div>
+                    );
+                })()}
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <input
-                        type="password"
-                        value={token}
-                        onChange={(e) => setToken(e.target.value)}
-                        name="token"
-                        autoComplete="off"
-                        aria-label="Provider token"
-                        className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                        placeholder="Provider token"
-                    />
-                    <input
-                        type="text"
-                        value={tokenExpiry}
-                        onChange={(e) => setTokenExpiry(e.target.value)}
-                        name="tokenExpiry"
-                        autoComplete="off"
-                        aria-label="Token expiry"
-                        className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                        placeholder="Expires in (e.g. 365d)"
-                    />
-                    <button
-                        type="button"
-                        onClick={handleSaveToken}
-                        disabled={saving || !token}
-                        className={`rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-                    >
-                        Save Token
-                    </button>
+                    {authMethod === 'plugin_oauth' ? (
+                        <div className="md:col-span-3 space-y-4">
+                            {pluginOAuth.isActive && pluginOAuth.provider === providerKey ? (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div className="text-sm font-semibold text-blue-800 mb-2">
+                                        Plugin OAuth Authorization in Progress
+                                    </div>
+                                    <div className="space-y-2 text-sm">
+                                        <div>
+                                            <strong>1. Visit:</strong>{' '}
+                                            <a 
+                                                href={pluginOAuth.verificationUri} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:text-blue-800 underline"
+                                            >
+                                                {pluginOAuth.verificationUri}
+                                            </a>
+                                        </div>
+                                        <div>
+                                            <strong>2. Enter code:</strong>{' '}
+                                            <span className="bg-gray-100 px-2 py-1 rounded font-mono text-lg">
+                                                {pluginOAuth.userCode}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-gray-600">
+                                            Time remaining: {Math.floor(pluginOAuth.timeRemaining / 60)}:
+                                            {String(pluginOAuth.timeRemaining % 60).padStart(2, '0')}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={cancelPluginOAuth}
+                                        className="mt-3 text-xs text-red-600 hover:text-red-800"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                <>
+                                    {providerKey === 'minimax-portal' ? (
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => startPluginOAuth(providerKey, 'global')}
+                                                disabled={saving}
+                                                className={`flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                                            >
+                                                {saving ? 'Starting...' : 'Connect (Global)'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => startPluginOAuth(providerKey, 'china')}
+                                                disabled={saving}
+                                                className={`flex-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                                            >
+                                                {saving ? 'Starting...' : 'Connect (China)'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => startPluginOAuth(providerKey)}
+                                            disabled={saving}
+                                            className={`w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                                        >
+                                            {saving ? 'Starting Plugin OAuth...' : `Connect via ${providerKey === 'qwen-portal' ? 'Qwen' : providerKey} Plugin`}
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    ) : authMethod === 'oauth' ? (
+                        <button
+                            type="button"
+                            onClick={handleOAuthLogin}
+                            disabled={saving}
+                            className={`rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING} md:col-span-3`}
+                        >
+                            {saving ? 'Starting OAuth...' : `Login with ${providerCatalog.find(p => p.key === providerKey)?.label || providerKey}`}
+                        </button>
+                    ) : (
+                        <>
+                            <input
+                                type="password"
+                                value={token}
+                                onChange={(e) => setToken(e.target.value)}
+                                name="token"
+                                autoComplete="off"
+                                aria-label="Provider token"
+                                className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
+                                placeholder="Provider token"
+                            />
+                            <input
+                                type="text"
+                                value={tokenExpiry}
+                                onChange={(e) => setTokenExpiry(e.target.value)}
+                                name="tokenExpiry"
+                                autoComplete="off"
+                                aria-label="Token expiry"
+                                className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
+                                placeholder="Expires in (e.g. 365d)"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleSaveToken}
+                                disabled={saving || !token}
+                                className={`rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                            >
+                                {saving ? 'Saving...' : 'Save Token'}
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
