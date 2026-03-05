@@ -105,7 +105,7 @@ create table if not exists public.vps_nodes (
   host_shard    text not null,                      -- e.g. "h1", "h2"
   base_domain   text not null,                      -- e.g. "magicteams.ai"
   ttyd_secret   text not null,                      -- per-VPS HMAC secret for terminal tokens
-  capacity_max  integer not null default 6,
+  capacity_max  integer not null default 5,
   capacity_used integer not null default 0,
   status        text not null default 'provisioning',
   -- status: provisioning | ready | full | decommissioned
@@ -184,6 +184,184 @@ alter table public.vps_nodes enable row level security;
 
 -- No policies = only service_role can access (RLS blocks anon/authenticated by default)
 
+-- ─────────────────────────────────────────────────────────────────────────
+-- IDEMPOTENT PROVISIONING FUNCTIONS
+-- ─────────────────────────────────────────────────────────────────────────
+
+-- Function to acquire provisioning lock (prevents duplicate provisioning)
+-- Returns TRUE if lock acquired, FALSE if already provisioning
+CREATE OR REPLACE FUNCTION public.acquire_provisioning_lock(
+    p_userid TEXT,
+    p_lock_id TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _current_status user_operation_status;
+    _lock_age INTERVAL;
+    _stale_threshold INTERVAL := '10 minutes';
+BEGIN
+    -- Get current status and check for stale locks
+    SELECT 
+        operation_status,
+        NOW() - provisioning_started_at
+    INTO _current_status, _lock_age
+    FROM user_profiles
+    WHERE userid = p_userid
+    FOR UPDATE NOWAIT;  -- Fail fast if another transaction has lock
+    
+    -- If not found, user doesn't exist yet (shouldn't happen, but handle gracefully)
+    IF NOT FOUND THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- If already ready, no need to provision
+    IF _current_status = 'ready' THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- If currently provisioning, check if lock is stale
+    IF _current_status = 'provisioning' THEN
+        IF _lock_age < _stale_threshold THEN
+            -- Recent provisioning in progress, deny new lock
+            RETURN FALSE;
+        ELSE
+            -- Stale lock detected, allow takeover
+            RAISE NOTICE 'Stale provisioning lock detected (age: %), taking over', _lock_age;
+        END IF;
+    END IF;
+    
+    -- Acquire lock
+    UPDATE user_profiles
+    SET
+        operation_status = 'provisioning',
+        provisioning_lock_id = p_lock_id,
+        provisioning_started_at = NOW(),
+        provisioning_error = NULL,
+        updated_at = NOW()
+    WHERE userid = p_userid;
+    
+    RETURN TRUE;
+    
+EXCEPTION
+    WHEN lock_not_available THEN
+        -- Another transaction is updating this row
+        RETURN FALSE;
+END;
+$$;
+
+-- Function to release provisioning lock and mark as ready
+CREATE OR REPLACE FUNCTION public.complete_provisioning(
+    p_userid TEXT,
+    p_lock_id TEXT,
+    p_container_name TEXT,
+    p_gateway_token TEXT,
+    p_instance_url TEXT,
+    p_terminal_url TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE user_profiles
+    SET
+        operation_status = 'ready',
+        docker_container_name = p_container_name,
+        gateway_token = p_gateway_token,
+        instance_url = p_instance_url,
+        terminal_url = p_terminal_url,
+        provisioning_completed_at = NOW(),
+        last_health_check = NOW(),
+        updated_at = NOW()
+    WHERE userid = p_userid
+      AND provisioning_lock_id = p_lock_id  -- Only if we own the lock
+      AND operation_status = 'provisioning';
+    
+    RETURN FOUND;
+END;
+$$;
+
+-- Function to mark provisioning as failed
+CREATE OR REPLACE FUNCTION public.fail_provisioning(
+    p_userid TEXT,
+    p_lock_id TEXT,
+    p_error_message TEXT
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE user_profiles
+    SET
+        operation_status = 'failed',
+        provisioning_error = p_error_message,
+        provisioning_completed_at = NOW(),
+        provisioning_retry_count = provisioning_retry_count + 1,
+        updated_at = NOW()
+    WHERE userid = p_userid
+      AND provisioning_lock_id = p_lock_id
+      AND operation_status = 'provisioning';
+    
+    RETURN FOUND;
+END;
+$$;
+
+-- Function to check provisioning status (idempotent)
+-- Returns status info for frontend polling
+CREATE OR REPLACE FUNCTION public.get_provisioning_status(p_userid TEXT)
+RETURNS TABLE (
+    status user_operation_status,
+    error_message TEXT,
+    is_stale BOOLEAN,
+    retry_count INTEGER,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _stale_threshold INTERVAL := '10 minutes';
+BEGIN
+    RETURN QUERY
+    SELECT
+        operation_status,
+        provisioning_error,
+        (operation_status = 'provisioning' AND NOW() - provisioning_started_at > _stale_threshold) as is_stale,
+        provisioning_retry_count,
+        provisioning_started_at,
+        provisioning_completed_at
+    FROM user_profiles
+    WHERE userid = p_userid;
+END;
+$$;
+
+-- Function to clean up stale provisioning locks (run periodically via cron or manually)
+CREATE OR REPLACE FUNCTION public.cleanup_stale_provisioning()
+RETURNS TABLE (
+    userid TEXT,
+    was_stale_for INTERVAL
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    _stale_threshold INTERVAL := '10 minutes';
+BEGIN
+    RETURN QUERY
+    UPDATE user_profiles
+    SET
+        operation_status = 'failed',
+        provisioning_error = 'Provisioning timeout - lock stale for ' || (NOW() - provisioning_started_at)::TEXT,
+        provisioning_completed_at = NOW(),
+        updated_at = NOW()
+    WHERE operation_status = 'provisioning'
+      AND NOW() - provisioning_started_at > _stale_threshold
+    RETURNING
+        user_profiles.userid,
+        NOW() - provisioning_started_at;
+END;
+$$;
+
 -- =============================================
 -- SAMPLE DATA (Optional - for testing)
 -- =============================================
@@ -204,7 +382,7 @@ alter table public.vps_nodes enable row level security;
 -- =============================================
 
 DO $$ BEGIN
-    CREATE TYPE user_operation_status AS ENUM ('onboarded', 'paid', 'provisioning', 'ready', 'suspended');
+    CREATE TYPE user_operation_status AS ENUM ('onboarded', 'paid', 'provisioning', 'ready', 'suspended', 'failed');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -218,7 +396,22 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     gateway_name TEXT,
     gateway_token TEXT,
     local_websocket TEXT,
-    operation_status user_operation_status NOT NULL DEFAULT 'onboarded'
+    operation_status user_operation_status NOT NULL DEFAULT 'onboarded',
+    
+    -- NEW: Provisioning tracking fields
+    provisioning_lock_id TEXT,                    -- Unique ID for each provisioning attempt
+    provisioning_started_at TIMESTAMPTZ,          -- When provisioning began
+    provisioning_completed_at TIMESTAMPTZ,        -- When provisioning finished (success or fail)
+    provisioning_error TEXT,                      -- Error message if failed
+    provisioning_retry_count INTEGER DEFAULT 0,   -- Number of retry attempts
+    last_health_check TIMESTAMPTZ,                -- Last successful container health check
+    
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Index for faster provisioning queries
+CREATE INDEX IF NOT EXISTS idx_user_profiles_status ON user_profiles(operation_status);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_lock ON user_profiles(provisioning_lock_id) WHERE provisioning_lock_id IS NOT NULL;
 
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
