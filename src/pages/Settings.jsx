@@ -319,6 +319,7 @@ const ModelsTab = () => {
                 body: JSON.stringify({
                     provider: providerKey,
                     token,
+                    authMethod,
                     ...(tokenExpiry ? { expiresIn: tokenExpiry } : {})
                 })
             });
