@@ -4,7 +4,7 @@ import { X, Zap, AlertCircle } from 'lucide-react';
 
 const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2';
 
-const SpawnSubAgentModal = ({ isOpen, onClose, onCreated }) => {
+const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
     const [availableModels, setAvailableModels] = useState([]);
     const [loadingModels, setLoadingModels] = useState(false);
     const [spawning, setSpawning] = useState(false);
@@ -61,7 +61,7 @@ const SpawnSubAgentModal = ({ isOpen, onClose, onCreated }) => {
             });
 
             const data = await response.json().catch(() => null);
-            if (!response.ok) throw new Error(data?.error || 'Failed to spawn sub-agent');
+            if (!response.ok) throw new Error(data?.error || 'Failed to deploy agent');
 
             onCreated?.(data);
         } catch (err) {
@@ -77,7 +77,7 @@ const SpawnSubAgentModal = ({ isOpen, onClose, onCreated }) => {
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                     <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                         <Zap className="w-5 h-5 text-violet-600" />
-                        Spawn Sub-Agent
+                        Deploy Agent
                     </h3>
                     <button
                         type="button"
@@ -123,9 +123,9 @@ const SpawnSubAgentModal = ({ isOpen, onClose, onCreated }) => {
                             required
                             rows={4}
                             className={`w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm transition-colors resize-none ${FOCUS_RING}`}
-                            placeholder="Describe what this sub-agent should do, e.g. 'Search the web and summarize news about AI. Focus on recent developments.'"
+                            placeholder="Describe what this agent should do, e.g. 'Search the web and summarize news about AI. Focus on recent developments.'"
                         />
-                        <p className="mt-1 text-xs text-gray-500">This becomes the sub-agent's initial instruction.</p>
+                        <p className="mt-1 text-xs text-gray-500">This becomes the agent's initial instruction.</p>
                     </div>
 
                     <div>
@@ -176,4 +176,4 @@ const SpawnSubAgentModal = ({ isOpen, onClose, onCreated }) => {
     );
 };
 
-export default SpawnSubAgentModal;
+export default CreateAgentModal;

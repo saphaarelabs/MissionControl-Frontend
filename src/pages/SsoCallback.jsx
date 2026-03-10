@@ -11,7 +11,7 @@ export default function SsoCallback() {
                     signInUrl="/sign-in"
                     signUpUrl="/sign-up"
                     signInFallbackRedirectUrl="/app"
-                    signUpFallbackRedirectUrl="/app"
+                    signUpFallbackRedirectUrl="/onboarding"
                 />
             </div>
         </div>

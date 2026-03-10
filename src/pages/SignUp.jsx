@@ -25,7 +25,7 @@ const SignUpPage = () => {
 
     useEffect(() => {
         if (userLoaded && isSignedIn) {
-            navigate('/app', { replace: true });
+            navigate('/onboarding', { replace: true });
         }
     }, [userLoaded, isSignedIn, navigate]);
 
@@ -61,7 +61,7 @@ const SignUpPage = () => {
             const result = await signUp.attemptEmailAddressVerification({ code });
             if (result.status === 'complete') {
                 await setActive({ session: result.createdSessionId });
-                navigate('/app');
+                navigate('/onboarding');
                 return;
             }
             setError('Verification incomplete. Try again.');
@@ -81,7 +81,7 @@ const SignUpPage = () => {
             await signUp.authenticateWithRedirect({
                 strategy: 'oauth_google',
                 redirectUrl: '/sso-callback',
-                redirectUrlComplete: '/app'
+                redirectUrlComplete: '/onboarding'
             });
         } catch (err) {
             const message = err?.errors?.[0]?.message || err?.message || 'Failed to start Google sign-up';

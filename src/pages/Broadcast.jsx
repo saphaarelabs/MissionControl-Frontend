@@ -1,27 +1,30 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
-import { apiAuthFetch } from '../lib/apiBase';
+import React, { useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, RefreshCw, Send, User, Loader2 } from 'lucide-react';
+import { Bot, RefreshCw, User, Loader2, Mic, Plus } from 'lucide-react';
+import { useBroadcast } from '../contexts/BroadcastContext';
 
 const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
 
 const Broadcast = () => {
-    const { isLoaded, getToken } = useAuth();
-    const [agents, setAgents] = useState([]);
-    const [selectedAgents, setSelectedAgents] = useState([]);
-    const [message, setMessage] = useState('');
+    const {
+        created,
+        createdIds,
+        jobsById,
+        loadingJobs,
+        recentJobs,
+        loadingRecent,
+        fetchRecent,
+        fetchJobs,
+        sending,
+        message,
+        setMessage,
+        handleBroadcast
+    } = useBroadcast();
 
-    const [sending, setSending] = useState(false);
-    const [created, setCreated] = useState([]);
-    const createdIds = useMemo(() => new Set(created.map(t => t.id)), [created]);
-
-    const [jobsById, setJobsById] = useState({});
-    const [loadingJobs, setLoadingJobs] = useState(false);
-
-    const [recentJobs, setRecentJobs] = useState([]);
-    const [loadingRecent, setLoadingRecent] = useState(false);
+    const [isRecording, setIsRecording] = React.useState(false);
+    const recognitionRef = useRef(null);
+    const fileInputRef = useRef(null);
 
     const endRef = useRef(null);
 
@@ -31,10 +34,44 @@ const Broadcast = () => {
         el.scrollIntoView({ behavior, block: 'end' });
     };
 
-    useEffect(() => {
-        if (!isLoaded) return;
-        fetchAgents();
-    }, [isLoaded]);
+    const toggleMic = () => {
+        if (isRecording) {
+            recognitionRef.current?.stop();
+            setIsRecording(false);
+        } else {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Speech recognition not supported in this browser.");
+                return;
+            }
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => setIsRecording(true);
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                setMessage(prev => prev ? prev + " " + transcript : transcript);
+            };
+            recognition.onerror = () => setIsRecording(false);
+            recognition.onend = () => setIsRecording(false);
+
+            recognitionRef.current = recognition;
+            recognition.start();
+        }
+    };
+
+    const handleFileClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            setMessage(prev => prev + ` [Attached: ${files[0].name}] `);
+        }
+    };
 
     useEffect(() => {
         fetchRecent();
@@ -42,116 +79,23 @@ const Broadcast = () => {
             if (createdIds.size === 0) fetchRecent();
         }, 15_000);
         return () => clearInterval(interval);
-    }, [createdIds]);
+    }, [createdIds, fetchRecent]);
 
     useEffect(() => {
         if (createdIds.size === 0) return;
         fetchJobs();
         const interval = setInterval(() => {
             fetchJobs();
-            apiAuthFetch('/api/heartbeat', { method: 'POST' }).catch(() => { /* ignore */ });
         }, 10_000);
         return () => clearInterval(interval);
-    }, [createdIds]);
-
-    const fetchAgents = async () => {
-        try {
-            const token = await getToken();
-            const response = await apiAuthFetch('/api/agents', {
-                headers: {
-                    ...(token ? { Authorization: `Bearer ${token}` } : {})
-                }
-            });
-            const data = await response.json();
-            setAgents(data.agents || []);
-            setSelectedAgents((data.agents || []).map(a => a.id));
-        } catch (error) {
-            console.error('Failed to fetch agents:', error);
-        }
-    };
-
-    const handleSelectAll = (checked) => {
-        setSelectedAgents(checked ? agents.map(a => a.id) : []);
-    };
-
-    const handleAgentToggle = (agentId) => {
-        setSelectedAgents((prev) => prev.includes(agentId)
-            ? prev.filter(id => id !== agentId)
-            : [...prev, agentId]
-        );
-    };
-
-    const handleBroadcast = async (e) => {
-        e.preventDefault();
-        if (!message.trim() || selectedAgents.length === 0) return;
-
-        setSending(true);
-        setCreated([]);
-        setJobsById({});
-
-        try {
-            const response = await apiAuthFetch('/api/broadcast', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, agentIds: selectedAgents })
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data?.error || 'Broadcast failed');
-            setCreated(Array.isArray(data.tasks) ? data.tasks : []);
-            setMessage('');
-        } catch (error) {
-            console.error('Broadcast failed:', error);
-        } finally {
-            setSending(false);
-        }
-    };
-
-    const fetchRecent = async () => {
-        setLoadingRecent(true);
-        try {
-            const response = await apiAuthFetch(`/api/tasks?limit=80&includeNarrative=true&includeLog=false&t=${Date.now()}`);
-            if (!response.ok) return;
-            const data = await response.json();
-            setRecentJobs(Array.isArray(data.jobs) ? data.jobs : []);
-        } catch {
-            // ignore
-        } finally {
-            setLoadingRecent(false);
-        }
-    };
-
-    const fetchJobs = async () => {
-        if (createdIds.size === 0) return;
-        setLoadingJobs(true);
-        try {
-            const ids = Array.from(createdIds).join(',');
-            const response = await apiAuthFetch(`/api/tasks?ids=${encodeURIComponent(ids)}&includeNarrative=true&includeLog=false&t=${Date.now()}`);
-            if (!response.ok) return;
-            const data = await response.json();
-            const jobs = Array.isArray(data.jobs) ? data.jobs : [];
-            const next = {};
-            for (const job of jobs) {
-                if (createdIds.has(job?.id)) next[job.id] = job;
-            }
-            setJobsById(next);
-        } catch {
-            // ignore
-        } finally {
-            setLoadingJobs(false);
-        }
-    };
+    }, [createdIds, fetchJobs]);
 
     const narrationMessages = useMemo(() => {
-        const shouldInclude = ({ role, text }) => {
-            const r = String(role || 'assistant').toLowerCase();
+        const shouldInclude = ({ text }) => {
             const t = String(text || '').trim();
             if (!t) return false;
-            if (r === 'user') return false;
             if (t.startsWith('Imported cron job:')) return false;
             if (t.startsWith('Last error:')) return false;
-            if (t === 'Run requested') return false;
-            if (t.startsWith('Task created:')) return false;
             return true;
         };
         const all = [];
@@ -164,7 +108,7 @@ const Broadcast = () => {
                     ts: n.ts || null,
                     agentId: n.agentId || task.agentId || 'main',
                     role: n.role || 'assistant',
-                    text: n.text || '',
+                    text: n.text || n.message || '',
                     jobId: task.id,
                     taskName: job?.name || task.name || task.id
                 });
@@ -179,7 +123,6 @@ const Broadcast = () => {
             const r = String(role || 'assistant').toLowerCase();
             const t = String(text || '').trim();
             if (!t) return false;
-            if (r === 'user') return false;
             if (t.startsWith('Imported cron job:')) return false;
             if (t.startsWith('Last error:')) return false;
             if (t === 'Run requested') return false;
@@ -195,7 +138,7 @@ const Broadcast = () => {
                     ts: n.ts || null,
                     agentId: n.agentId || job?.agentId || 'main',
                     role: n.role || 'assistant',
-                    text: n.text || '',
+                    text: n.text || n.message || '',
                     jobId: job?.id,
                     taskName: job?.name || job?.id
                 });
@@ -214,207 +157,128 @@ const Broadcast = () => {
     }, [feedMessages.length, sending]);
 
     return (
-        <div className="flex h-full min-h-0 flex-col gap-6 lg:grid lg:grid-cols-12">
-            {/* Left: Task Composition */}
-            <div className="min-h-0 rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-4 flex flex-col">
-                <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <Send className="w-5 h-5 text-blue-600" aria-hidden="true" />
-                    New Broadcast
-                </h2>
-
-                <form onSubmit={handleBroadcast} className="flex-1 flex flex-col gap-4">
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 flex-1 flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Select Agents ({selectedAgents.length}/{agents.length})
-                        </label>
-
-                        <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-200">
-                            <input
-                                type="checkbox"
-                                checked={selectedAgents.length === agents.length && agents.length > 0}
-                                onChange={(e) => handleSelectAll(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-600">Select All</span>
+        <div className="flex h-full min-h-0 flex-col bg-[#ffffff] font-sans">
+            <div className="flex-1 flex min-h-0">
+                {/* Full Width Feed */}
+                <div className="flex-1 flex flex-col min-w-0 relative">
+                    <div className="px-8 py-4 flex items-center justify-between border-b border-slate-50">
+                        <div>
+                            <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.3em] leading-none mb-1.5">Group Chat Feed</h2>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{feedTitle}</p>
                         </div>
-
-                        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                            {agents.map(agent => (
-                                <label key={agent.id} className="flex items-center gap-3 p-2 hover:bg-white rounded cursor-pointer transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedAgents.includes(agent.id)}
-                                        onChange={() => handleAgentToggle(agent.id)}
-                                        className="rounded text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs">
-                                            {agent.identity?.emoji || agent.id[0].toUpperCase()}
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">
-                                            {agent.identity?.name || agent.id}
-                                        </span>
-                                    </div>
-                                </label>
-                            ))}
-                        </div>
+                        <button
+                            onClick={() => (createdIds.size > 0 ? fetchJobs() : fetchRecent())}
+                            disabled={feedLoading}
+                            className="p-1.5 rounded-full hover:bg-slate-50 text-slate-400 transition-colors"
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${feedLoading ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
 
-                    <div>
-                        <label htmlFor="broadcast-message" className="block text-sm font-medium text-gray-700 mb-2">
-                            Task Instructions
-                        </label>
-                        <textarea
-                            id="broadcast-message"
-                            name="message"
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            className={`h-32 w-full resize-none rounded-lg border border-gray-300 px-4 py-3 shadow-sm transition-colors ${FOCUS_RING}`}
-                            placeholder="Describe the task for the selected agents…"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={sending || selectedAgents.length === 0 || !message.trim()}
-                        className={`flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-                    >
-                        {sending ? (
-                            <>
-                                <Loader2 className="w-5 h-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                                Broadcasting…
-                            </>
-                        ) : (
-                            <>
-                                <Send className="w-5 h-5" aria-hidden="true" />
-                                Send Task
-                            </>
+                    <div className="flex-1 overflow-y-auto px-8 pb-32 space-y-8 scroll-smooth">
+                        {feedMessages.length === 0 && !sending && !feedLoading && (
+                            <div className="flex flex-col items-center justify-center h-full opacity-20">
+                                <Bot className="w-12 h-12 mb-4" />
+                                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-300">No transmissions yet</p>
+                            </div>
                         )}
-                    </button>
-                </form>
-            </div>
 
-            {/* Right: Chat Feed (no separate status cards) */}
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-8 flex flex-col">
-                <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                        <div className="text-lg font-bold text-gray-800">Broadcast feed</div>
-                        <div className="text-xs text-gray-500">
-                            {feedTitle}
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (createdIds.size > 0) fetchJobs();
-                            else fetchRecent();
-                        }}
-                        disabled={feedLoading}
-                        className={`flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-white disabled:opacity-50 ${FOCUS_RING}`}
-                        aria-label="Refresh feed"
-                    >
-                        <RefreshCw className="w-4 h-4" aria-hidden="true" />
-                        Refresh
-                    </button>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
-                    {feedLoading && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                            Loading…
-                        </div>
-                    )}
-
-                    {feedMessages.length === 0 && !sending && !feedLoading && (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                            <Bot className="w-16 h-16 mb-4 opacity-20" aria-hidden="true" />
-                            <p>No activity yet. Send a broadcast to start.</p>
-                        </div>
-                    )}
-
-                    {feedMessages.map((m, idx) => {
-                        const role = String(m.role || 'assistant');
-                        const isUser = role === 'user';
-                        const isSystem = role === 'system';
-
-                        const avatar = isUser
-                            ? (
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 flex-shrink-0 mt-1">
-                                    <User className="w-5 h-5" aria-hidden="true" />
-                                </div>
-                            )
-                            : (
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${isSystem ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-600'}`}>
-                                    <Bot className="w-5 h-5" aria-hidden="true" />
+                        {feedMessages.map((m, idx) => {
+                            const isUser = m.role === 'user';
+                            return (
+                                <div key={`${m.jobId}-${idx}`} className={`flex gap-6 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border border-slate-100 shadow-sm ${isUser ? 'bg-slate-900 text-white' : 'bg-white text-blue-600'}`}>
+                                        {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                                    </div>
+                                    <div className="flex-1 max-w-3xl space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">
+                                                {m.agentId || 'ADMIN'}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-slate-300">
+                                                {m.ts || 'RECENT'}
+                                            </span>
+                                        </div>
+                                        <div className="text-[14px] leading-relaxed text-slate-700 font-medium">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    p: ({ children }) => <p className="mb-4 last:mb-0">{children}</p>,
+                                                    code: ({ inline, children }) => inline
+                                                        ? <code className="bg-slate-50 text-blue-600 px-1.5 py-0.5 rounded text-[12px] font-mono border border-slate-100">{children}</code>
+                                                        : <code className="block bg-slate-950 text-white p-5 rounded-2xl text-[12px] font-mono overflow-x-auto my-4 shadow-xl whitespace-pre">{children}</code>,
+                                                    ul: ({ children }) => <ul className="list-disc ml-4 mb-4 space-y-2">{children}</ul>,
+                                                }}
+                                            >
+                                                {m.text}
+                                            </ReactMarkdown>
+                                        </div>
+                                    </div>
                                 </div>
                             );
-
-                        const bubbleClass = isUser
-                            ? 'bg-blue-600 text-white rounded-tr-none'
-                            : isSystem
-                                ? 'bg-gray-50 text-gray-700 border border-gray-200 rounded-tl-none'
-                                : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none';
-
-                        const metaClass = isUser ? 'text-blue-100' : 'text-gray-500';
-
-                        return (
-                            <div
-                                key={`${m.jobId}-${idx}`}
-                                className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
-                            >
-                                {!isUser && avatar}
-                                <div className={`max-w-[75%] p-3 rounded-lg shadow-sm text-sm ${bubbleClass}`}>
-                                    <div className={`text-[10px] mb-1 ${metaClass}`}>
-                                        {m.ts || ''}{m.agentId ? ` • ${m.agentId}` : ''}{m.taskName ? ` • ${m.taskName}` : ''}
-                                    </div>
-                                    {isUser ? (
-                                        <div className="whitespace-pre-wrap">{m.text}</div>
-                                    ) : (
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                                h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-1">{children}</h1>,
-                                                h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-1">{children}</h2>,
-                                                h3: ({ children }) => <h3 className="text-sm font-bold mb-1 mt-1">{children}</h3>,
-                                                p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
-                                                ul: ({ children }) => <ul className="list-disc ml-4 mb-2 space-y-1">{children}</ul>,
-                                                ol: ({ children }) => <ol className="list-decimal ml-4 mb-2 space-y-1">{children}</ol>,
-                                                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                                                strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                                                em: ({ children }) => <em className="italic">{children}</em>,
-                                                code: ({ inline, children }) => inline
-                                                    ? <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-xs font-mono">{children}</code>
-                                                    : <code className="block bg-gray-900 text-green-400 p-3 rounded-lg text-xs font-mono overflow-x-auto my-2 whitespace-pre">{children}</code>,
-                                                pre: ({ children }) => <pre className="my-2">{children}</pre>,
-                                                a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-800">{children}</a>,
-                                                blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-300 pl-3 my-2 italic text-gray-600">{children}</blockquote>,
-                                            }}
-                                        >
-                                            {m.text}
-                                        </ReactMarkdown>
-                                    )}
+                        })}
+                        {sending && (
+                            <div className="flex gap-6 animate-pulse">
+                                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">
+                                    <Bot className="w-4 h-4" />
                                 </div>
-                                {isUser && avatar}
+                                <div className="space-y-2">
+                                    <div className="h-2 w-24 bg-slate-50 rounded" />
+                                    <div className="h-4 w-64 bg-slate-50 rounded-lg" />
+                                </div>
                             </div>
-                        );
-                    })}
+                        )}
+                        <div ref={endRef} className="h-4" />
+                    </div>
 
-                    {sending && (
-                        <div className="flex justify-start gap-3">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0 mt-1">
-                                <Bot className="w-5 h-5" aria-hidden="true" />
-                            </div>
-                            <div className="bg-white p-3 rounded-lg rounded-tl-none border border-gray-100 shadow-sm flex items-center gap-1">
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce motion-reduce:animate-none"></span>
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-75 motion-reduce:animate-none"></span>
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-150 motion-reduce:animate-none"></span>
+                    {/* Floating pill Input */}
+                    <div className="absolute bottom-8 left-0 right-0 px-8 pointer-events-none">
+                        <div className="max-w-3xl mx-auto w-full pointer-events-auto">
+                            <div className="relative group">
+                                <div className="absolute inset-0 bg-blue-500/5 blur-xl group-focus-within:bg-blue-500/10 transition-all rounded-full" />
+                                <div className="relative flex items-center bg-white border border-slate-200/80 rounded-[28px] p-1.5 pr-2 shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_50px_rgba(0,0,0,0.1)] transition-all group-focus-within:border-slate-300">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                        multiple
+                                    />
+                                    <button
+                                        onClick={handleFileClick}
+                                        className="p-2.5 rounded-full hover:bg-slate-50 text-slate-500 transition-colors"
+                                    >
+                                        <Plus className="w-5 h-5" strokeWidth={2.5} />
+                                    </button>
+                                    <input
+                                        type="text"
+                                        value={message}
+                                        onChange={(e) => setMessage(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleBroadcast()}
+                                        placeholder="Ask anything..."
+                                        className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] font-medium placeholder:text-slate-400 px-2 h-10"
+                                    />
+                                    <div className="flex items-center gap-0.5">
+                                        <button
+                                            onClick={toggleMic}
+                                            className={`p-2.5 rounded-full hover:bg-slate-50 transition-colors ${isRecording ? 'text-blue-600 animate-pulse bg-blue-50' : 'text-slate-500'}`}
+                                        >
+                                            <Mic className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={handleBroadcast}
+                                            disabled={sending || !message.trim()}
+                                            className={`bg-[#0A6BFF] text-white p-2 rounded-full shadow-md hover:bg-blue-600 transition-all active:scale-90 flex items-center justify-center ml-1 disabled:opacity-100 disabled:shadow-none`}
+                                        >
+                                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="m5 12 7-7 7 7" /><path d="M12 19V5" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    )}
-
-                    <div ref={endRef} />
+                    </div>
                 </div>
             </div>
         </div>

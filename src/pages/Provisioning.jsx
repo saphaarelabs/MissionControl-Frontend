@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth, useUser, useClerk } from '@clerk/clerk-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, CheckCircle2, LogOut, Loader2 } from 'lucide-react';
 import { apiAuthFetch } from '../lib/apiBase';
 
 const steps = [
@@ -12,69 +14,42 @@ const steps = [
 
 export default function Provisioning() {
     const navigate = useNavigate();
-    const { isLoaded } = useAuth();
-    const { user } = useUser();
+    const { isLoaded: authLoaded } = useAuth();
+    const { user, isLoaded: userLoaded } = useUser();
+    const { signOut } = useClerk();
     const [stepIndex, setStepIndex] = useState(0);
     const [error, setError] = useState(null);
+    const [completed, setCompleted] = useState(false);
 
     useEffect(() => {
         const stepTimer = setInterval(() => {
             setStepIndex((i) => Math.min(i + 1, steps.length - 1));
-        }, 8000);
+        }, 5000);
         return () => clearInterval(stepTimer);
     }, []);
 
     useEffect(() => {
-        // Wait for Clerk to finish loading before polling — avoids 401s on first request
-        if (!isLoaded || !user) return;
+        if (!authLoaded || !userLoaded || !user) return;
 
         let stopped = false;
 
-        const triggerProvisioning = async () => {
-            const username =
-                user.primaryEmailAddress?.emailAddress
-                || user.emailAddresses?.[0]?.emailAddress
-                || user.username
-                || user.id;
-            console.log('[provisioning] triggering profile/sync to kick off provisioning...');
-            await apiAuthFetch('/api/user/profile/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
-        };
-
         const poll = async () => {
-            // Trigger provisioning immediately on mount in case the first attempt failed
-            await triggerProvisioning().catch((err) =>
-                console.warn('[provisioning] sync trigger failed:', err.message)
-            );
-
-            let lastSyncAt = Date.now();
-
             while (!stopped) {
                 try {
                     const res = await apiAuthFetch('/api/user/profile');
                     if (res.ok) {
                         const { profile } = await res.json();
-                        console.log('[provisioning] status:', profile?.operation_status);
                         if (profile?.operation_status === 'ready') {
-                            navigate('/app', { replace: true });
+                            setCompleted(true);
                             return;
                         }
                         if (profile?.operation_status === 'suspended') {
                             setError('Your account has been suspended. Contact support.');
                             return;
                         }
-                        // If still 'onboarded' (control plane failed), retry sync at most
-                        // once every 30 s to avoid hammering the backend.
-                        if (profile?.operation_status === 'onboarded' && Date.now() - lastSyncAt > 30_000) {
-                            lastSyncAt = Date.now();
-                            await triggerProvisioning().catch(() => {});
-                        }
                     }
-                } catch {
-                    // network blip — keep polling
+                } catch (err) {
+                    console.error('[provisioning] poll error:', err);
                 }
                 await new Promise((r) => setTimeout(r, 3000));
             }
@@ -82,51 +57,135 @@ export default function Provisioning() {
 
         poll();
         return () => { stopped = true; };
-    }, [navigate, isLoaded, user]);
+    }, [navigate, authLoaded, userLoaded, user]);
 
     return (
-        <div style={{
-            minHeight: '100dvh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-            color: '#f8fafc',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            padding: '2rem',
-        }}>
-            {error ? (
-                <p style={{ color: '#f87171', fontSize: '1rem', textAlign: 'center' }}>{error}</p>
-            ) : (
-                <>
-                    <div style={{
-                        width: 64, height: 64, borderRadius: '50%',
-                        border: '3px solid #334155',
-                        borderTopColor: '#6366f1',
-                        animation: 'spin 1s linear infinite',
-                        marginBottom: '2rem',
-                    }} />
-                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.75rem', textAlign: 'center' }}>
-                        Setting up your OpenClaw agent
-                    </h1>
-                    <p style={{ color: '#94a3b8', fontSize: '0.95rem', textAlign: 'center', maxWidth: 360 }}>
-                        {steps[stepIndex]}…
-                    </p>
-
-                    <div style={{ marginTop: '3rem', display: 'flex', gap: '0.5rem' }}>
-                        {steps.map((_, i) => (
-                            <div key={i} style={{
-                                width: 8, height: 8, borderRadius: '50%',
-                                background: i <= stepIndex ? '#6366f1' : '#334155',
-                                transition: 'background 0.4s',
-                            }} />
-                        ))}
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex min-h-dvh flex-col bg-white text-slate-900"
+            style={{ fontFamily: '"Satoshi", sans-serif' }}
+        >
+            <header className="flex w-full items-center justify-between px-8 py-6">
+                <div className="flex items-center gap-2" />
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => signOut(() => navigate('/'))}
+                        className="flex items-center gap-2 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 hover:text-slate-900 transition-all"
+                    >
+                        <LogOut size={12} />
+                        Sign Out
+                    </button>
+                    <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 uppercase">
+                        {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'D'}
                     </div>
-                </>
-            )}
-        </div>
+                </div>
+            </header>
+
+            <main className="flex flex-1 flex-col items-center justify-center px-6 pb-20">
+                <AnimatePresence mode="wait">
+                    {error ? (
+                        <motion.div
+                            key="error"
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-full max-w-md text-center"
+                        >
+                            <div className="mb-6 flex justify-center text-red-500">
+                                <div className="h-20 w-20 rounded-full bg-red-50 flex items-center justify-center ring-1 ring-red-100">
+                                    <Bot size={40} />
+                                </div>
+                            </div>
+                            <h2 className="mb-2 text-xl font-bold">Setup Issue</h2>
+                            <p className="text-slate-500">{error}</p>
+                            <button
+                                onClick={() => navigate('/')}
+                                className="mt-8 rounded-full bg-slate-100 px-6 py-2 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-200"
+                            >
+                                Back to Home
+                            </button>
+                        </motion.div>
+                    ) : completed ? (
+                        <motion.div
+                            key="completed"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            transition={{ type: 'spring', duration: 0.8, bounce: 0.3 }}
+                            className="w-full max-w-md text-center"
+                        >
+                            <div className="mb-8 flex justify-center">
+                                <motion.div
+                                    initial={{ rotate: -10 }}
+                                    animate={{ rotate: 0 }}
+                                    transition={{ type: 'spring', delay: 0.2 }}
+                                    className="flex h-24 w-24 items-center justify-center rounded-3xl bg-blue-50 text-blue-600 ring-1 ring-blue-100 shadow-xl shadow-blue-500/10"
+                                >
+                                    <CheckCircle2 size={48} strokeWidth={2.5} />
+                                </motion.div>
+                            </div>
+
+                            <span className="mb-6 inline-block rounded-full bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-600 ring-1 ring-blue-100">
+                                Success
+                            </span>
+
+                            <h1 className="mb-4 text-4xl font-black tracking-tight text-slate-900">Welcome to Dashboard</h1>
+                            <p className="mb-12 text-slate-500 text-lg font-medium leading-relaxed">Your AI workforce is ready and waiting for your commands.</p>
+
+                            <button
+                                onClick={() => navigate('/app')}
+                                className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-blue-600 px-8 py-4 text-lg font-black text-white transition-all hover:bg-blue-700 hover:shadow-[0_20px_40px_rgba(37,99,235,0.25)] active:scale-95"
+                            >
+                                Go to Dashboard
+                                <ChevronRight className="transition-transform group-hover:translate-x-1" size={24} strokeWidth={3} />
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="provisioning"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-full max-w-md text-center"
+                        >
+
+                            <span className="mb-6 inline-block rounded-full bg-slate-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 ring-1 ring-slate-100">
+                                Provisioning
+                            </span>
+
+                            <h1 className="mb-4 text-3xl font-black tracking-tight text-slate-900">Setting up your account</h1>
+                            <p className="text-slate-500 font-medium leading-relaxed mb-12">
+                                {steps[stepIndex]}... <br />
+                                <span className="text-xs opacity-60">Deploying your intelligent workspace.</span>
+                            </p>
+
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="h-2 w-48 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200/50">
+                                    <motion.div
+                                        animate={{
+                                            x: [-200, 200]
+                                        }}
+                                        transition={{
+                                            duration: 2.5,
+                                            repeat: Infinity,
+                                            ease: "easeInOut"
+                                        }}
+                                        className="h-full w-full bg-blue-600 opacity-80"
+                                    />
+                                </div>
+                                <div className="flex gap-1.5 mt-2">
+                                    {steps.map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className={`h-1.5 rounded-full transition-all duration-500 ${i < stepIndex ? 'w-4 bg-blue-600' :
+                                                i === stepIndex ? 'w-8 bg-blue-500' : 'w-1.5 bg-slate-200'
+                                                }`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </main>
+        </motion.div>
     );
 }
