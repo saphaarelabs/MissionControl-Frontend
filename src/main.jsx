@@ -8,6 +8,9 @@ import { ClerkProvider } from '@clerk/clerk-react'
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 const clerkAppearance = {
+  variables: {
+    fontFamily: '"Satoshi", ui-sans-serif, system-ui, sans-serif',
+  },
   elements: {
     footer: "hidden",
     footerAction: "hidden",
@@ -77,7 +80,7 @@ createRoot(document.getElementById('root')).render(
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/app"
-      signUpFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/onboarding"
       afterSignOutUrl="/"
       appearance={clerkAppearance}
     >

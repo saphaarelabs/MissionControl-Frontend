@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { apiAuthFetch } from '../lib/apiBase';
-import { Plus, Calendar } from 'lucide-react';
+import { Plus, Calendar, MessageSquare, Cpu } from 'lucide-react';
 
 const COLUMNS = [
-    { id: 'inbox', title: 'Inbox', dot: 'bg-gray-400' },
-    { id: 'assigned', title: 'Assigned', dot: 'bg-blue-500' },
-    { id: 'active', title: 'In Progress', dot: 'bg-emerald-500' },
-    { id: 'review', title: 'Review', dot: 'bg-amber-500' },
-    { id: 'failed', title: 'Failed', dot: 'bg-red-500' },
-    { id: 'done', title: 'Done', dot: 'bg-purple-500' }
+    { id: 'inbox', title: 'INBOX', dot: 'bg-gray-400' },
+    { id: 'assigned', title: 'ASSIGNED', dot: 'bg-blue-400' },
+    { id: 'active', title: 'IN PROGRESS', dot: 'bg-emerald-500' },
+    { id: 'review', title: 'REVIEW', dot: 'bg-amber-500' },
+    { id: 'done', title: 'DONE', dot: 'bg-green-500' }
 ];
 
 const KanbanBoard = () => {
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [gatewayStatus, setGatewayStatus] = useState('offline');
     const [createOpen, setCreateOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [detailsLoading, setDetailsLoading] = useState(false);
@@ -25,12 +25,24 @@ const KanbanBoard = () => {
 
     useEffect(() => {
         fetchTasks();
+        fetchGatewayStatus();
         const interval = setInterval(() => {
             fetchTasks();
+            fetchGatewayStatus();
             apiAuthFetch('/api/heartbeat', { method: 'POST' }).catch(() => { /* ignore */ });
-        }, 10_000);
+        }, 5_000);
         return () => clearInterval(interval);
     }, []);
+
+    const fetchGatewayStatus = async () => {
+        try {
+            const response = await apiAuthFetch('/api/health');
+            const data = await response.json().catch(() => null);
+            setGatewayStatus(data?.status === 'online' ? 'online' : 'offline');
+        } catch {
+            setGatewayStatus('offline');
+        }
+    };
 
     const fetchTasks = async () => {
         try {
@@ -137,20 +149,32 @@ const KanbanBoard = () => {
     }
 
     return (
-        <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white">
-                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-blue-600" />
-                    Mission Queue
-                </h2>
-                <button
-                    onClick={() => setCreateOpen(true)}
-                    disabled={saving}
-                    className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 shadow-sm flex items-center gap-1 disabled:opacity-50"
-                >
-                    <Plus className="w-4 h-4" />
-                    {saving ? 'Creating…' : 'New Task'}
-                </button>
+        <div className="h-full flex flex-col bg-white">
+            <div className="px-5 py-5 flex justify-between items-center bg-white border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+                <div className="flex items-center gap-3">
+                    <h2 className="text-[13px] font-extrabold text-slate-900 tracking-[0.25em] uppercase">
+                        Command Center
+                    </h2>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-1.5 shadow-sm" aria-live="polite">
+                        <div
+                            className={`h-2.5 w-2.5 rounded-full ${gatewayStatus === 'online' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]'}`}
+                            aria-hidden="true"
+                        />
+                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest leading-none">
+                            {gatewayStatus === 'online' ? 'Connected' : 'Offline'}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => setCreateOpen(true)}
+                        disabled={saving}
+                        className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-[11px] font-extrabold uppercase tracking-widest hover:bg-blue-700 shadow-md transition-all hover:translate-y-[-1px] active:translate-y-[0] flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                        <Plus className="w-4 h-4" />
+                        {saving ? 'Deploying…' : 'New Mission'}
+                    </button>
+                </div>
             </div>
 
             {createOpen && (
@@ -234,50 +258,76 @@ const KanbanBoard = () => {
                 </div>
             )}
 
-            <div className="flex-1 overflow-x-auto p-4">
-                <div className="flex gap-4 h-full min-w-max">
+            <div className="flex-1 overflow-x-auto bg-white">
+                <div className="flex gap-1 px-4 py-4 h-full min-w-max">
                     {COLUMNS.map(column => {
                         const columnTasks = getColumnTasks(column.id);
 
                         return (
-                            <div key={column.id} className="w-72 flex flex-col bg-gray-50 rounded-lg h-full border border-gray-200">
-                                <div className="p-3 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-lg">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${column.dot}`}></div>
-                                        <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wider">
+                            <div key={column.id} className="w-[270px] flex flex-col bg-slate-50 rounded-2xl h-full border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden">
+                                <div className="px-5 py-4 flex justify-between items-center border-b border-slate-200/30 bg-white">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${column.dot} shadow-sm`}></div>
+                                        <h3 className="font-extrabold text-slate-900 text-[11px] tracking-[0.15em] uppercase">
                                             {column.title}
                                         </h3>
-                                        <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                                        <span className="bg-slate-200/60 text-slate-600 text-[11px] font-bold px-2 py-0.5 rounded-full min-w-[24px] text-center">
                                             {columnTasks.length}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                                <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-3">
                                     {columnTasks.map(task => (
                                         <div
                                             key={task.id}
-                                            className="bg-white p-3 rounded border border-gray-200"
+                                            onClick={() => openDetails(task)}
+                                            className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-[0_2px_4px_rgba(0,0,0,0.03)] hover:shadow-xl hover:translate-y-[-2px] transition-all cursor-pointer relative overflow-hidden group"
                                         >
-                                            <div className="flex justify-between items-start">
-                                                <h4 className="font-medium text-gray-800 text-sm line-clamp-2">
-                                                    {task.name}
-                                                </h4>
+                                            <div className={`absolute top-0 left-0 right-0 h-[3px] ${task.agentId?.toLowerCase().includes('loki') ? 'bg-blue-400' :
+                                                task.agentId?.toLowerCase().includes('vision') ? 'bg-emerald-400' :
+                                                    task.agentId?.toLowerCase().includes('jarvis') ? 'bg-blue-400' :
+                                                        task.agentId?.toLowerCase().includes('fury') ? 'bg-red-400' :
+                                                            'bg-blue-300'
+                                                } opacity-70`}></div>
+                                            <div className="flex items-start gap-2.5">
+                                                <div className="mt-1">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300">
+                                                        <path d="M7 17l10-10M17 17V7H7" />
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-bold text-gray-800 text-[14px] leading-tight mb-2 tracking-tight">
+                                                        {task.name}
+                                                    </h4>
+                                                    <p className="text-[12px] text-gray-400 leading-normal line-clamp-2 mb-4">
+                                                        {task.payload?.message || task?.metadata?.message || 'No description provided for this mission goal.'}
+                                                    </p>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-5 h-5 rounded-md ${task.agentId?.toLowerCase().includes('fury') ? 'bg-red-100 text-red-600' :
+                                                                'bg-blue-100 text-blue-600'
+                                                                } flex items-center justify-center text-[10px] font-bold`}>
+                                                                {(task.agentId || 'J').charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <span className="text-[11px] font-bold text-gray-600">{task.agentId || 'Jarvis'}</span>
+                                                        </div>
+                                                        <span className="text-[10px] font-medium text-gray-300">
+                                                            {task.metadata?.createdAt ? new Date(task.metadata.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'recently'}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="mt-3 flex flex-wrap gap-1.5 leading-none">
+                                                        <span className="px-2 py-1 bg-gray-100/50 text-gray-400 text-[9px] font-bold rounded uppercase tracking-wider">research</span>
+                                                        {column.id === 'inbox' && <span className="px-2 py-1 bg-gray-100/50 text-gray-400 text-[9px] font-bold rounded uppercase tracking-wider">content</span>}
+                                                        {column.id === 'active' && <span className="px-2 py-1 bg-gray-100/50 text-gray-400 text-[9px] font-bold rounded uppercase tracking-wider">internal</span>}
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <p className="mt-2 text-xs text-gray-500 line-clamp-2">
-                                                {task.payload?.message || task?.metadata?.message || 'No description'}
-                                            </p>
-
-                                            <div className="mt-3 flex justify-end">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openDetails(task)}
-                                                    className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                                                >
-                                                    View details
-                                                </button>
-                                            </div>
+                                            {/* Hover highlight line */}
+                                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                         </div>
                                     ))}
                                 </div>
@@ -348,64 +398,72 @@ const KanbanBoard = () => {
                                             </div>
                                         </div>
 
-                                        {detailsTask?.metadata?.lastRun && (
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-700">Last run</div>
-                                                <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                    <Field label="Run status" value={detailsTask.metadata.lastRun.status || '—'} />
-                                                    <Field label="Run ts" value={detailsTask.metadata.lastRun.ts || '—'} />
-                                                </div>
-                                                {(detailsTask.metadata.lastRun.error || detailsTask.metadata.lastRun.summary) && (
-                                                    <div className="mt-2 space-y-2">
-                                                        {detailsTask.metadata.lastRun.error && (
-                                                            <div>
-                                                                <div className="text-xs font-semibold text-gray-700">Error</div>
-                                                                <pre className="mt-1 whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800">{String(detailsTask.metadata.lastRun.error)}</pre>
+                                        <div>
+                                            <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
+                                                <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                                                Agents Comments
+                                            </div>
+                                            <div className="mt-2 space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                                                {(detailsTask?.metadata?.lastRun?.summary || detailsTask?.metadata?.lastDecision?.reason || (Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.length > 0)) ? (
+                                                    <div className="space-y-3">
+                                                        {/* High-level Decision/Summary Comment */}
+                                                        {(detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary) && (
+                                                            <div className="flex flex-col gap-1 rounded-xl bg-blue-600 p-4 shadow-md">
+                                                                <div className="flex items-center justify-between gap-4 border-b border-blue-500/50 pb-2 mb-1">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-4 w-4 rounded-full bg-white/20 flex items-center justify-center">
+                                                                            <Cpu className="h-2.5 w-2.5 text-white" />
+                                                                        </div>
+                                                                        <span className="text-[10px] font-extrabold text-white uppercase tracking-widest">
+                                                                            {detailsTask?.agentId || 'AGENT'} DECISION
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-[9px] font-medium text-blue-100 tabular-nums">
+                                                                        {detailsTask?.metadata?.lastDecision?.ts || detailsTask?.metadata?.lastRun?.ts || 'latest'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-sm text-white leading-relaxed font-medium">
+                                                                    {detailsTask?.metadata?.lastDecision?.reason || detailsTask?.metadata?.lastRun?.summary}
+                                                                </div>
+                                                                {detailsTask?.metadata?.lastRun?.error && (
+                                                                    <div className="mt-2 rounded-lg bg-red-900/30 border border-red-500/30 p-2 text-[11px] text-red-100 font-mono">
+                                                                        Error: {String(detailsTask.metadata.lastRun.error)}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
-                                                        {detailsTask.metadata.lastRun.summary && (
-                                                            <div>
-                                                                <div className="text-xs font-semibold text-gray-700">Summary</div>
-                                                                <pre className="mt-1 whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800">{String(detailsTask.metadata.lastRun.summary)}</pre>
+
+                                                        {/* Narrative History */}
+                                                        {Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.map((n, idx) => (
+                                                            <div key={idx} className="flex flex-col gap-1 rounded-xl bg-slate-50 border border-slate-100 p-3 shadow-sm transition-all hover:border-blue-100 hover:bg-blue-50/30">
+                                                                <div className="flex items-center justify-between gap-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-4 w-4 rounded-full bg-blue-100 flex items-center justify-center">
+                                                                            <Cpu className="h-2.5 w-2.5 text-blue-600" />
+                                                                        </div>
+                                                                        <span className="text-[10px] font-extrabold text-blue-700 uppercase tracking-widest">
+                                                                            {n.agentId || 'system'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <span className="text-[9px] font-medium text-slate-400 tabular-nums">
+                                                                        {n.ts ? new Date(n.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="text-sm text-slate-700 leading-relaxed font-medium">
+                                                                    {n.text || '—'}
+                                                                </div>
                                                             </div>
-                                                        )}
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
+                                                        <MessageSquare className="w-6 h-6 text-slate-300 mb-2" />
+                                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Awaiting Comments</p>
+                                                        <p className="text-[10px] text-slate-400 mt-1">Agents will post their feedback here.</p>
                                                     </div>
                                                 )}
                                             </div>
-                                        )}
-
-                                        {detailsTask?.metadata?.lastDecision && (
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-700">Last decision</div>
-                                                <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                    <Field label="Decision" value={detailsTask.metadata.lastDecision.decision || '—'} />
-                                                    <Field label="Decision ts" value={detailsTask.metadata.lastDecision.ts || '—'} />
-                                                </div>
-                                                {detailsTask.metadata.lastDecision.reason && (
-                                                    <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800">{String(detailsTask.metadata.lastDecision.reason)}</pre>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {Array.isArray(detailsTask?.metadata?.log) && detailsTask.metadata.log.length > 0 && (
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-700">Log</div>
-                                                <pre className="mt-1 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800">{detailsTask.metadata.log.join('\n')}</pre>
-                                            </div>
-                                        )}
-
-                                        {Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.length > 0 && (
-                                            <div>
-                                                <div className="text-xs font-semibold text-gray-700">Narrative</div>
-                                                <pre className="mt-1 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800">{detailsTask.metadata.narrative.map((n) => {
-                                                    const ts = n?.ts ? String(n.ts) : '';
-                                                    const role = n?.role ? String(n.role) : '';
-                                                    const agentId = n?.agentId ? String(n.agentId) : '';
-                                                    const text = n?.text ? String(n.text) : '';
-                                                    return `${ts} ${agentId ? `[${agentId}] ` : ''}${role ? `${role}: ` : ''}${text}`.trim();
-                                                }).join('\n\n')}</pre>
-                                            </div>
-                                        )}
+                                        </div>
                                     </div>
                                 )}
                             </div>

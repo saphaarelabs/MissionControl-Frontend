@@ -30,8 +30,8 @@ const Settings = () => {
                         aria-selected={activeTab === tab.id}
                         aria-controls={`panel-${tab.id}`}
                         className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-semibold transition-colors ${FOCUS_RING} ${activeTab === tab.id
-                                ? 'border-blue-600 text-blue-600'
-                                : 'border-transparent text-gray-600 hover:text-gray-900'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-600 hover:text-gray-900'
                             }`}
                     >
                         {tab.label}
@@ -102,7 +102,7 @@ const ModelsTab = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [status, setStatus] = useState('');
-    
+
     // Plugin OAuth state
     const [pluginOAuth, setPluginOAuth] = useState({
         isActive: false,
@@ -197,12 +197,12 @@ const ModelsTab = () => {
         loadCatalog();
         loadConfig();
         loadGatewayModels();
-        
+
         // Handle OAuth callback parameters
         const urlParams = new URLSearchParams(window.location.search);
         const oauthError = urlParams.get('oauth_error');
         const oauthSuccess = urlParams.get('oauth_success');
-        
+
         if (oauthError) {
             setError(`OAuth Error: ${oauthError}`);
             // Clean up URL parameters
@@ -357,7 +357,7 @@ const ModelsTab = () => {
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to start OAuth flow');
             }
-            
+
             // Check if this is OpenAI Codex with broken redirect pattern
             if (data.instructions && data.instructions.length > 0) {
                 // Show manual URL entry flow
@@ -383,7 +383,7 @@ const ModelsTab = () => {
             setError('Please enter the callback URL from the error page');
             return;
         }
-        
+
         setSaving(true);
         setError('');
         try {
@@ -394,17 +394,17 @@ const ModelsTab = () => {
                     callbackUrl: callbackUrl.trim()
                 })
             });
-            
+
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to process OAuth callback');
             }
-            
+
             setStatus(data.message || `${providerKey} configured successfully!`);
             setOauthFlow({ active: false, authUrl: '', instructions: [] });
             setCallbackUrl('');
             loadGatewayModels(); // Refresh models list
-            
+
         } catch (e) {
             setError(e.message);
         } finally {
@@ -428,7 +428,7 @@ const ModelsTab = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ provider, region })
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 setPluginOAuth({
@@ -441,7 +441,7 @@ const ModelsTab = () => {
                     interval: data.interval,
                     timeRemaining: data.expiresIn
                 });
-                
+
                 // Start polling and countdown
                 pollPluginOAuth(data.deviceCode, data.interval);
                 startCountdown(data.expiresIn);
@@ -464,9 +464,9 @@ const ModelsTab = () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ deviceCode })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.status === 'success') {
                     setPluginOAuth({ isActive: false, provider: null });
                     setStatus(`Successfully authenticated with ${result.provider}!`);
@@ -489,7 +489,7 @@ const ModelsTab = () => {
                 setPluginOAuth({ isActive: false, provider: null });
             }
         };
-        
+
         setTimeout(poll, interval * 1000);
     };
 
@@ -502,9 +502,9 @@ const ModelsTab = () => {
                 return { ...prev, timeRemaining: prev.timeRemaining - 1 };
             });
         };
-        
+
         const countdownInterval = setInterval(updateCountdown, 1000);
-        
+
         setTimeout(() => {
             clearInterval(countdownInterval);
             setPluginOAuth(prev => ({ ...prev, isActive: false, provider: null }));
@@ -613,7 +613,7 @@ const ModelsTab = () => {
                 {(() => {
                     const provider = providerCatalog.find(p => p.key === providerKey);
                     if (!provider?.description) return null;
-                    
+
                     return (
                         <div className="mb-3 rounded-lg bg-blue-50 border border-blue-200 p-3">
                             <p className="text-sm text-blue-800">
@@ -631,7 +631,7 @@ const ModelsTab = () => {
                             )}
                             {authMethod === 'plugin_oauth' && (
                                 <p className="text-xs text-blue-600 mt-1">
-                                    Plugin-based OAuth for {providerKey === 'minimax-portal' ? 'MiniMax' : providerKey === 'qwen-portal' ? 'Qwen' : providerKey}. 
+                                    Plugin-based OAuth for {providerKey === 'minimax-portal' ? 'MiniMax' : providerKey === 'qwen-portal' ? 'Qwen' : providerKey}.
                                     You'll need to visit a verification URL and enter a code.
                                 </p>
                             )}
@@ -650,9 +650,9 @@ const ModelsTab = () => {
                                     <div className="space-y-2 text-sm">
                                         <div>
                                             <strong>1. Visit:</strong>{' '}
-                                            <a 
-                                                href={pluginOAuth.verificationUri} 
-                                                target="_blank" 
+                                            <a
+                                                href={pluginOAuth.verificationUri}
+                                                target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-blue-600 hover:text-blue-800 underline"
                                             >
@@ -735,7 +735,7 @@ const ModelsTab = () => {
                                             Cancel
                                         </button>
                                     </div>
-                                    
+
                                     <div className="space-y-3">
                                         <div>
                                             <a
@@ -747,7 +747,7 @@ const ModelsTab = () => {
                                                 🚀 Open OAuth Login
                                             </a>
                                         </div>
-                                        
+
                                         <div className="text-sm text-blue-800">
                                             <p className="font-medium mb-2">Follow these steps:</p>
                                             <ol className="list-decimal list-inside space-y-1 text-xs">
@@ -756,7 +756,7 @@ const ModelsTab = () => {
                                                 ))}
                                             </ol>
                                         </div>
-                                        
+
                                         <div className="space-y-2">
                                             <label htmlFor="callbackUrl" className="block text-sm font-medium text-blue-900">
                                                 Paste the full URL from the error page:
@@ -770,7 +770,7 @@ const ModelsTab = () => {
                                                 className="w-full rounded-md border border-blue-300 px-3 py-2 text-xs font-mono shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>
-                                        
+
                                         <button
                                             type="button"
                                             onClick={handleManualOAuthCallback}
@@ -784,36 +784,45 @@ const ModelsTab = () => {
                             )}
                         </div>
                     ) : (
-                        <>
-                            <input
-                                type="password"
-                                value={token}
-                                onChange={(e) => setToken(e.target.value)}
-                                name="token"
-                                autoComplete="off"
-                                aria-label="Provider token"
-                                className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                                placeholder="Provider token"
-                            />
-                            <input
-                                type="text"
-                                value={tokenExpiry}
-                                onChange={(e) => setTokenExpiry(e.target.value)}
-                                name="tokenExpiry"
-                                autoComplete="off"
-                                aria-label="Token expiry"
-                                className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                                placeholder="Expires in (e.g. 365d)"
-                            />
+                        <div className="md:col-span-3 space-y-4">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div className="space-y-1">
+                                    <label htmlFor="token" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Provider Token</label>
+                                    <input
+                                        id="token"
+                                        type="password"
+                                        value={token}
+                                        onChange={(e) => setToken(e.target.value)}
+                                        name="token"
+                                        autoComplete="off"
+                                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
+                                        placeholder="Enter your API key or token"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label htmlFor="tokenExpiry" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Expires in</label>
+                                    <input
+                                        id="tokenExpiry"
+                                        type="text"
+                                        value={tokenExpiry}
+                                        onChange={(e) => setTokenExpiry(e.target.value)}
+                                        name="tokenExpiry"
+                                        autoComplete="off"
+                                        className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
+                                        placeholder="e.g. 365d (optional)"
+                                    />
+                                </div>
+                            </div>
                             <button
                                 type="button"
                                 onClick={handleSaveToken}
                                 disabled={saving || !token}
-                                className={`rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                                className={`flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-blue-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
                             >
+                                <Save className="h-4 w-4" />
                                 {saving ? 'Saving...' : 'Save Token'}
                             </button>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
@@ -1681,11 +1690,11 @@ const ChannelsTab = () => {
                 <div className="absolute inset-0 bg-black/40" aria-hidden="true" />
                 <div className="relative flex min-h-full items-center justify-center p-4">
                     <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-xl">
-                    <div className="flex items-center gap-3">
-                        <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                        <div className="text-sm font-semibold text-gray-900">{title}</div>
-                    </div>
-                    <div className="mt-2 text-xs text-gray-600">Please wait… (this can take ~1–2 minutes)</div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                            <div className="text-sm font-semibold text-gray-900">{title}</div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-600">Please wait… (this can take ~1–2 minutes)</div>
                     </div>
                 </div>
             </div>
@@ -1704,43 +1713,43 @@ const ChannelsTab = () => {
                 />
                 <div className="relative flex min-h-full items-center justify-center p-4">
                     <div role="dialog" aria-modal="true" aria-labelledby="whatsapp-title" className="w-full max-w-3xl rounded-xl border border-gray-200 bg-white p-5 shadow-xl">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <div id="whatsapp-title" className="text-base font-semibold text-gray-900">WhatsApp pairing</div>
-                            <div className="text-xs text-gray-600 mt-1">
-                                Open WhatsApp on your phone → Linked devices → Link a device → scan this QR.
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setWhatsappModalOpen(false)}
-                            disabled={whatsappPairing}
-                            className={`rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-50 ${FOCUS_RING}`}
-                        >
-                            {whatsappPairing ? 'Pairing…' : 'Close'}
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                        <div className="border border-gray-200 rounded-lg bg-gray-50 p-3 flex items-center justify-center min-h-[320px]">
-                            {whatsappQr ? (
-                                <img src={whatsappQr} alt="WhatsApp QR" className="w-72 h-72" />
-                            ) : (
-                                <div className="flex items-center gap-3 text-sm text-gray-700">
-                                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                                    Generating QR…
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <div id="whatsapp-title" className="text-base font-semibold text-gray-900">WhatsApp pairing</div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                    Open WhatsApp on your phone → Linked devices → Link a device → scan this QR.
                                 </div>
-                            )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setWhatsappModalOpen(false)}
+                                disabled={whatsappPairing}
+                                className={`rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-50 disabled:opacity-50 ${FOCUS_RING}`}
+                            >
+                                {whatsappPairing ? 'Pairing…' : 'Close'}
+                            </button>
                         </div>
-                        <textarea
-                            value={loginOutput}
-                            readOnly
-                            rows={14}
-                            aria-label="Pairing output"
-                            className={`w-full rounded-lg border border-gray-300 bg-white p-3 font-mono text-xs shadow-sm ${FOCUS_RING}`}
-                            placeholder="Pairing output will appear here…"
-                        />
-                    </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+                            <div className="border border-gray-200 rounded-lg bg-gray-50 p-3 flex items-center justify-center min-h-[320px]">
+                                {whatsappQr ? (
+                                    <img src={whatsappQr} alt="WhatsApp QR" className="w-72 h-72" />
+                                ) : (
+                                    <div className="flex items-center gap-3 text-sm text-gray-700">
+                                        <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                                        Generating QR…
+                                    </div>
+                                )}
+                            </div>
+                            <textarea
+                                value={loginOutput}
+                                readOnly
+                                rows={14}
+                                aria-label="Pairing output"
+                                className={`w-full rounded-lg border border-gray-300 bg-white p-3 font-mono text-xs shadow-sm ${FOCUS_RING}`}
+                                placeholder="Pairing output will appear here…"
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
