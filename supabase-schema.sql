@@ -398,6 +398,11 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     local_websocket TEXT,
     operation_status user_operation_status NOT NULL DEFAULT 'onboarded',
     
+    -- Onboarding data fields
+    full_name TEXT,                               -- User's full name from onboarding
+    phone_number TEXT,                            -- User's phone number from onboarding
+    onboarding_data JSONB,                        -- Complete onboarding data (LLM config, channels, etc.)
+    
     -- NEW: Provisioning tracking fields
     provisioning_lock_id TEXT,                    -- Unique ID for each provisioning attempt
     provisioning_started_at TIMESTAMPTZ,          -- When provisioning began
