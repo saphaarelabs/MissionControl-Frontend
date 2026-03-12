@@ -75,13 +75,26 @@ const SignUpPage = () => {
         setLoading(true);
         setError('');
         try {
+            // Use signUp for the signup flow
             await signUp.authenticateWithRedirect({
                 strategy: 'oauth_google',
                 redirectUrl: '/sso-callback',
-                // Let SsoCallback handle routing - it has signUpFallbackRedirectUrl="/onboarding"
+                // Let SsoCallback handle routing based on profile status
             });
         } catch (err) {
+            // Check if error is due to existing account
+            const errorCode = err?.errors?.[0]?.code;
             const message = err?.errors?.[0]?.message || err?.message || 'Failed to start Google sign-up';
+            
+            // If account already exists, redirect to sign-in
+            if (errorCode === 'form_identifier_exists' || 
+                message.toLowerCase().includes('exists') ||
+                message.toLowerCase().includes('already')) {
+                setError('This account already exists. Redirecting to sign in...');
+                setTimeout(() => navigate('/sign-in'), 2000);
+                return;
+            }
+            
             setError(message);
         } finally {
             setLoading(false);
