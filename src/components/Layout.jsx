@@ -82,35 +82,46 @@ const Layout = () => {
         };
     }, [isResizing, isResizingRight, resize, stopResizing]);
 
+    // Check if user has completed onboarding - redirect to onboarding if not
     useEffect(() => {
         if (!isLoaded || !isSignedIn) return;
         if (!user?.id) return;
         if (didSyncRef.current) return;
 
-        const username =
-            user.primaryEmailAddress?.emailAddress
-            || user.emailAddresses?.[0]?.emailAddress
-            || user.username
-            || user.fullName
-            || user.id;
-
-        const run = async () => {
-            const res = await apiAuthFetch('/api/user/profile/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
-
-            if (!res.ok) {
-                const text = await res.text().catch(() => '');
-                throw new Error(`Failed to sync profile: ${res.status} ${text}`);
+        const checkProfile = async () => {
+            try {
+                const res = await apiAuthFetch('/api/user/profile');
+                if (res.ok) {
+                    const { profile } = await res.json();
+                    
+                    // If no profile exists, user hasn't completed onboarding
+                    if (!profile) {
+                        console.log('[Layout] No profile found, redirecting to onboarding');
+                        navigate('/onboarding', { replace: true });
+                        return;
+                    }
+                    
+                    // If profile exists but no operation_status, redirect to onboarding
+                    if (!profile.operation_status) {
+                        console.log('[Layout] Profile exists but not onboarded, redirecting to onboarding');
+                        navigate('/onboarding', { replace: true });
+                        return;
+                    }
+                    
+                    console.log('[Layout] User has valid profile with status:', profile.operation_status);
+                } else {
+                    console.error('[Layout] Failed to fetch profile:', res.status);
+                    // On error, redirect to onboarding to be safe
+                    navigate('/onboarding', { replace: true });
+                }
+            } catch (err) {
+                console.error('[Layout] Error checking profile:', err);
+                navigate('/onboarding', { replace: true });
             }
         };
 
         didSyncRef.current = true;
-        run().catch((err) => {
-            console.error(err);
-        });
+        checkProfile();
     }, [isLoaded, isSignedIn, navigate, user]);
 
     const handleAgentClick = (agent) => {
