@@ -23,11 +23,8 @@ const SignUpPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        if (userLoaded && isSignedIn) {
-            navigate('/onboarding', { replace: true });
-        }
-    }, [userLoaded, isSignedIn, navigate]);
+    // Don't auto-redirect here - let the SSO callback handle routing
+    // This ensures consistent behavior for both OAuth and email/password signup
 
     const handleSubmit = async (e) => {
         e.preventDefault();

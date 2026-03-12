@@ -21,11 +21,8 @@ const SignInPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        if (userLoaded && isSignedIn) {
-            navigate('/app', { replace: true });
-        }
-    }, [userLoaded, isSignedIn, navigate]);
+    // Don't auto-redirect here - let the SSO callback handle routing
+    // This was causing new Google users to skip onboarding
 
     const handleSubmit = async (e) => {
         e.preventDefault();
