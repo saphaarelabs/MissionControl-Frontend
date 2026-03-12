@@ -81,7 +81,7 @@ const SignUpPage = () => {
             await signUp.authenticateWithRedirect({
                 strategy: 'oauth_google',
                 redirectUrl: '/sso-callback',
-                redirectUrlComplete: '/onboarding'
+                // Let SsoCallback handle routing - it has signUpFallbackRedirectUrl="/onboarding"
             });
         } catch (err) {
             const message = err?.errors?.[0]?.message || err?.message || 'Failed to start Google sign-up';

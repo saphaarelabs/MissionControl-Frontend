@@ -62,7 +62,7 @@ const SignInPage = () => {
             await signIn.authenticateWithRedirect({
                 strategy: 'oauth_google',
                 redirectUrl: '/sso-callback',
-                redirectUrlComplete: '/app'
+                // Let SsoCallback handle routing based on new vs existing user
             });
         } catch (err) {
             const message = err?.errors?.[0]?.message || err?.message || 'Failed to start Google sign-in';
