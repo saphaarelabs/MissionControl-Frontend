@@ -396,7 +396,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     gateway_name TEXT,
     gateway_token TEXT,
     local_websocket TEXT,
-    operation_status user_operation_status NOT NULL DEFAULT 'onboarded',
+    operation_status user_operation_status,  -- NULL until onboarding complete, then 'onboarded' -> 'provisioning' -> 'ready'
     
     -- Onboarding data fields
     full_name TEXT,                               -- User's full name from onboarding
