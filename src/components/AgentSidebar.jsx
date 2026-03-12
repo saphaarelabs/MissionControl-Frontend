@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiAuthFetch } from '../lib/apiBase';
-import { Zap, Play, Square, Circle, Plus, AlertCircle, Cpu, Clock, RefreshCw, MoreVertical, Trash2, PanelLeft, Edit, Search, Grid } from 'lucide-react';
+import { Zap, Play, Square, Circle, Plus, AlertCircle, Cpu, Clock, RefreshCw, MoreVertical, Trash2, PanelLeft, Edit, Search, Grid, Settings } from 'lucide-react';
 import CreateAgentModal from './CreateAgentModal';
 
 const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
