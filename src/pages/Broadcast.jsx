@@ -79,7 +79,8 @@ const Broadcast = () => {
             if (createdIds.size === 0) fetchRecent();
         }, 15_000);
         return () => clearInterval(interval);
-    }, [createdIds, fetchRecent]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [createdIds.size]);
 
     useEffect(() => {
         if (createdIds.size === 0) return;
@@ -88,7 +89,8 @@ const Broadcast = () => {
             fetchJobs();
         }, 10_000);
         return () => clearInterval(interval);
-    }, [createdIds, fetchJobs]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [createdIds.size]);
 
     const narrationMessages = useMemo(() => {
         const shouldInclude = ({ text }) => {
