@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser, useClerk } from '@clerk/clerk-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, CheckCircle2, LogOut, Loader2 } from 'lucide-react';
+import { Bot, CheckCircle2, LogOut, Loader2, ChevronRight } from 'lucide-react';
 import { apiAuthFetch } from '../lib/apiBase';
 
 const steps = [

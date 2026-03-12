@@ -7,6 +7,7 @@ export default function SsoCallback() {
     const { isLoaded, isSignedIn, user } = useUser();
     const navigate = useNavigate();
     const [isChecking, setIsChecking] = useState(false);
+    const [shouldShowCallback, setShouldShowCallback] = useState(true);
 
     useEffect(() => {
         const checkAndRedirect = async () => {
@@ -14,6 +15,7 @@ export default function SsoCallback() {
             if (!isLoaded || !isSignedIn || !user || isChecking) return;
 
             setIsChecking(true);
+            setShouldShowCallback(false); // Hide the callback component once we start checking
             console.log('[SsoCallback] User signed in, checking profile status...');
 
             // Small delay to ensure Clerk session is fully established
@@ -35,7 +37,14 @@ export default function SsoCallback() {
                         return;
                     }
                     
-                    // Existing user -> dashboard
+                    // If user has onboarding data but is still provisioning, go to provisioning page
+                    if (profile.operation_status === 'provisioning' || profile.operation_status === 'onboarded') {
+                        console.log('[SsoCallback] User is provisioning, redirecting to /provisioning');
+                        navigate('/provisioning', { replace: true });
+                        return;
+                    }
+                    
+                    // Existing user with ready status -> dashboard
                     console.log('[SsoCallback] Existing user with operation_status:', profile.operation_status, '-> redirecting to /app');
                     navigate('/app', { replace: true });
                 } else {
@@ -58,13 +67,15 @@ export default function SsoCallback() {
             <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-8 shadow-lg">
                 <div className="text-lg font-bold">Signing you in…</div>
                 <div className="mt-2 text-sm text-slate-600">Please wait while we complete Google authentication.</div>
-                <AuthenticateWithRedirectCallback
-                    signInUrl="/sign-in"
-                    signUpUrl="/sign-up"
-                    afterSignInUrl="/sso-callback"
-                    afterSignUpUrl="/sso-callback"
-                    continueSignUpUrl="/sso-callback"
-                />
+                {shouldShowCallback && (
+                    <AuthenticateWithRedirectCallback
+                        signInUrl="/sign-in"
+                        signUpUrl="/sign-up"
+                        afterSignInUrl="/sso-callback"
+                        afterSignUpUrl="/sso-callback"
+                        continueSignUpUrl="/sso-callback"
+                    />
+                )}
             </div>
         </div>
     );
