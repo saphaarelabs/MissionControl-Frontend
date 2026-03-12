@@ -576,22 +576,23 @@ const ModelsTab = () => {
     const enabledForProvider = enabledModels.filter(m => m.startsWith(`${providerKey}/`));
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-4">
             {/* Step 1: Provider Selection */}
-            <div className="bg-white border-2 border-blue-100 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold text-sm">1</div>
-                    <h3 className="text-xl font-bold text-gray-900">Choose Provider</h3>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        1. Choose Provider
+                    </label>
+                    <p className="text-xs text-slate-500 mb-3">
+                        Select your LLM provider (e.g., Anthropic for Claude, OpenAI for GPT)
+                    </p>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
-                    Select your LLM provider (e.g., Anthropic for Claude, OpenAI for GPT)
-                </p>
                 <select
                     value={providerKey}
                     onChange={(e) => setProviderKey(e.target.value)}
                     name="provider"
                     aria-label="Provider"
-                    className={`w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base font-medium shadow-sm hover:border-blue-400 transition-colors md:w-2/3 ${FOCUS_RING}`}
+                    className={`w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition-colors hover:border-slate-400 ${FOCUS_RING}`}
                 >
                     {providerCatalog.map((provider) => (
                         <option key={provider.key} value={provider.key}>
@@ -602,23 +603,24 @@ const ModelsTab = () => {
             </div>
 
             {/* Step 2: Authentication */}
-            <div className="bg-white border-2 border-blue-100 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold text-sm">2</div>
-                    <h3 className="text-xl font-bold text-gray-900">Authenticate</h3>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        2. Authenticate
+                    </label>
+                    <p className="text-xs text-slate-500 mb-3">
+                        {providerKey === 'anthropic' 
+                            ? 'Enter your Anthropic API key from console.anthropic.com'
+                            : `Provide your ${providerCatalog.find(p => p.key === providerKey)?.label || 'provider'} credentials`}
+                    </p>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
-                    {providerKey === 'anthropic' 
-                        ? 'Enter your Anthropic API key from console.anthropic.com or use Claude setup-token'
-                        : `Provide your ${providerCatalog.find(p => p.key === providerKey)?.label || 'provider'} credentials`}
-                </p>
-                <div className="flex flex-wrap gap-3 mb-4">
+                <div className="flex flex-wrap gap-2 mb-3">
                     {(providerCatalog.find(p => p.key === providerKey)?.authMethods || ['api_key']).map((method) => (
                         <button
                             key={method}
                             type="button"
                             onClick={() => setAuthMethod(method)}
-                            className={`rounded-lg border-2 px-4 py-2.5 text-sm font-bold shadow-sm transition-all ${FOCUS_RING} ${authMethod === method ? 'border-blue-600 bg-blue-50 text-blue-700 scale-105' : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'}`}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${FOCUS_RING} ${authMethod === method ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}
                         >
                             {getAuthLabel(method)}
                         </button>
@@ -631,24 +633,23 @@ const ModelsTab = () => {
                     if (!provider?.description) return null;
 
                     return (
-                        <div className="mb-3 rounded-lg bg-blue-50 border border-blue-200 p-3">
-                            <p className="text-sm text-blue-800">
-                                <strong>{provider.label}:</strong> {provider.description}
+                        <div className="mb-3 rounded-lg bg-blue-50 border border-blue-100 p-3">
+                            <p className="text-xs text-slate-700">
+                                <strong className="text-slate-900">{provider.label}:</strong> {provider.description}
                             </p>
                             {authMethod === 'setup_token' && (
-                                <p className="text-xs text-blue-600 mt-1">
-                                    Run <code className="bg-blue-100 px-1 rounded">claude setup-token</code> in terminal, then paste the token here.
+                                <p className="text-xs text-slate-600 mt-1">
+                                    Run <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">claude setup-token</code> in terminal
                                 </p>
                             )}
                             {authMethod === 'oauth' && (
-                                <p className="text-xs text-blue-600 mt-1">
-                                    Only available for OpenAI Codex - uses your ChatGPT credentials.
+                                <p className="text-xs text-slate-600 mt-1">
+                                    Uses your ChatGPT credentials (OpenAI Codex only)
                                 </p>
                             )}
                             {authMethod === 'plugin_oauth' && (
-                                <p className="text-xs text-blue-600 mt-1">
-                                    Plugin-based OAuth for {providerKey === 'minimax-portal' ? 'MiniMax' : providerKey === 'qwen-portal' ? 'Qwen' : providerKey}.
-                                    You'll need to visit a verification URL and enter a code.
+                                <p className="text-xs text-slate-600 mt-1">
+                                    Plugin-based OAuth - you'll receive a verification URL and code
                                 </p>
                             )}
                         </div>
@@ -801,40 +802,25 @@ const ModelsTab = () => {
                         </div>
                     ) : (
                         <div className="md:col-span-3 space-y-4">
-                            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">ℹ</div>
-                                    <div className="text-sm text-blue-900">
-                                        {providerKey === 'anthropic' ? (
-                                            <div>
-                                                <p className="font-semibold mb-1">Get your Anthropic API Key:</p>
-                                                <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                    <li>Visit <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">console.anthropic.com</a></li>
-                                                    <li>Navigate to API Keys section</li>
-                                                    <li>Create a new API key</li>
-                                                    <li>Copy and paste it below (starts with sk-ant-...)</li>
-                                                </ol>
-                                            </div>
-                                        ) : providerKey === 'openai' ? (
-                                            <div>
-                                                <p className="font-semibold mb-1">Get your OpenAI API Key:</p>
-                                                <ol className="list-decimal ml-4 space-y-1 text-xs">
-                                                    <li>Visit <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-700">platform.openai.com/api-keys</a></li>
-                                                    <li>Click "Create new secret key"</li>
-                                                    <li>Copy and paste it below (starts with sk-...)</li>
-                                                </ol>
-                                            </div>
-                                        ) : (
-                                            <p>Enter your API key or token for {providerCatalog.find(p => p.key === providerKey)?.label}</p>
-                                        )}
-                                    </div>
-                                </div>
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                <p className="text-xs text-slate-700 mb-2">
+                                    {providerKey === 'anthropic' ? (
+                                        <>
+                                            Get your key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-700">console.anthropic.com</a> (starts with sk-ant-...)
+                                        </>
+                                    ) : providerKey === 'openai' ? (
+                                        <>
+                                            Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline hover:text-blue-700">platform.openai.com/api-keys</a>
+                                        </>
+                                    ) : (
+                                        <>Enter your API key or token</>
+                                    )}
+                                </p>
                             </div>
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <label htmlFor="token" className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                        <span className="text-red-500">*</span>
-                                        API Key / Token
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="token" className="text-xs font-semibold text-slate-700">
+                                        API Key / Token <span className="text-red-500">*</span>
                                     </label>
                                     <input
                                         id="token"
@@ -844,12 +830,12 @@ const ModelsTab = () => {
                                         name="token"
                                         autoComplete="off"
                                         required
-                                        className={`w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm font-mono shadow-sm hover:border-blue-400 transition-colors ${FOCUS_RING}`}
+                                        className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono transition-colors hover:border-slate-400 ${FOCUS_RING}`}
                                         placeholder={providerKey === 'anthropic' ? 'sk-ant-...' : providerKey === 'openai' ? 'sk-...' : 'Enter your API key'}
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label htmlFor="tokenExpiry" className="text-sm font-bold text-slate-700">
+                                <div className="space-y-1.5">
+                                    <label htmlFor="tokenExpiry" className="text-xs font-semibold text-slate-700">
                                         Expires In (Optional)
                                     </label>
                                     <input
@@ -859,8 +845,8 @@ const ModelsTab = () => {
                                         onChange={(e) => setTokenExpiry(e.target.value)}
                                         name="tokenExpiry"
                                         autoComplete="off"
-                                        className={`w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm shadow-sm hover:border-blue-400 transition-colors ${FOCUS_RING}`}
-                                        placeholder="e.g. 365d, 30d, never"
+                                        className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                                        placeholder="e.g. 365d, 30d"
                                     />
                                 </div>
                             </div>
@@ -868,17 +854,17 @@ const ModelsTab = () => {
                                 type="button"
                                 onClick={handleSaveToken}
                                 disabled={saving || !token}
-                                className={`flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-blue-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-600 ${FOCUS_RING} w-full md:w-auto`}
+                                className={`flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING} w-full md:w-auto`}
                             >
-                                <Save className="h-5 w-5" />
-                                {saving ? 'Saving Token...' : 'Save API Key'}
+                                <Save className="h-4 w-4" />
+                                {saving ? 'Saving...' : 'Save API Key'}
                             </button>
                             {status && (
-                                <div className="flex items-center gap-2 text-green-700 bg-green-50 border-2 border-green-200 rounded-lg px-4 py-3">
-                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                                     </svg>
-                                    <span className="font-semibold">{status}</span>
+                                    <span className="font-medium">{status}</span>
                                 </div>
                             )}
                         </div>
@@ -969,14 +955,15 @@ const ModelsTab = () => {
             )}
 
             {/* Step 3: Enable Models */}
-            <div className="bg-white border-2 border-blue-100 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold text-sm">{providerKey === 'custom' ? '4' : '3'}</div>
-                    <h3 className="text-xl font-bold text-gray-900">Enable Models</h3>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        {providerKey === 'custom' ? '4' : '3'}. Enable Models
+                    </label>
+                    <p className="text-xs text-slate-500 mb-3">
+                        Select models to use ({enabledModels.length} enabled)
+                    </p>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
-                    Select which models from {providerCatalog.find(p => p.key === providerKey)?.label || 'this provider'} you want to use. You must save your API key first (Step 2).
-                </p>
                 <input
                     type="text"
                     value={modelSearch}
@@ -984,13 +971,13 @@ const ModelsTab = () => {
                     name="modelSearch"
                     autoComplete="off"
                     aria-label="Search models"
-                    className={`mb-4 w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm shadow-sm hover:border-blue-400 transition-colors md:w-2/3 ${FOCUS_RING}`}
-                    placeholder="🔍 Search models (e.g. claude-sonnet, gpt-4)..."
+                    className={`mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
+                    placeholder="Search models..."
                 />
-                <div className="flex flex-wrap gap-2 mb-4 max-h-80 overflow-y-auto border-2 border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="flex flex-wrap gap-2 mb-3 max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
                     {filteredModels.length === 0 && (
-                        <div className="text-sm text-gray-500 w-full text-center py-8">
-                            {modelSearch ? 'No models match your search. Try adding it manually below.' : 'No models available. Save your API key first or add models manually.'}
+                        <div className="text-xs text-slate-500 w-full text-center py-6">
+                            {modelSearch ? 'No models match. Try adding manually below.' : 'No models available. Save API key first.'}
                         </div>
                     )}
                     {filteredModels.map((modelKey) => (
@@ -998,15 +985,15 @@ const ModelsTab = () => {
                             key={modelKey}
                             type="button"
                             onClick={() => toggleModel(modelKey)}
-                            className={`rounded-lg border-2 px-4 py-2 text-sm font-semibold shadow-sm transition-all ${FOCUS_RING} ${enabledModels.includes(modelKey) ? 'border-blue-600 bg-blue-50 text-blue-700 scale-105' : 'border-gray-300 text-gray-700 hover:bg-white hover:border-gray-400'}`}
+                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${FOCUS_RING} ${enabledModels.includes(modelKey) ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-300 text-slate-700 hover:bg-white'}`}
                         >
                             {enabledModels.includes(modelKey) && '✓ '}
                             {modelKey}
                         </button>
                     ))}
                 </div>
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm font-semibold text-amber-900 mb-2">Add Model Manually</p>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-slate-700 mb-2">Add Model Manually</p>
                     <div className="flex gap-2">
                         <input
                             type="text"
@@ -1015,39 +1002,35 @@ const ModelsTab = () => {
                             name="manualModel"
                             autoComplete="off"
                             aria-label="Add model ID"
-                            className={`flex-1 rounded-lg border-2 border-gray-300 px-4 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                            placeholder={providerKey === 'anthropic' ? 'e.g. anthropic/claude-opus-4-6' : providerKey === 'openai' ? 'e.g. openai/gpt-4.1' : 'e.g. provider/model-name'}
+                            className={`flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm ${FOCUS_RING}`}
+                            placeholder={providerKey === 'anthropic' ? 'anthropic/claude-opus-4-6' : providerKey === 'openai' ? 'openai/gpt-4.1' : 'provider/model-name'}
                         />
                         <button
                             type="button"
                             onClick={addManualModel}
                             disabled={!manualModel.trim()}
-                            className={`rounded-lg bg-amber-600 px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
+                            className={`rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed ${FOCUS_RING}`}
                         >
                             Add
                         </button>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold text-gray-700">Enabled for {providerCatalog.find(p => p.key === providerKey)?.label}:</span>
-                    <span className="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full">{enabledForProvider.length} models</span>
-                </div>
             </div>
 
             {/* Step 4: Primary + Fallbacks */}
-            <div className="bg-white border-2 border-blue-100 rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full font-bold text-sm">{providerKey === 'custom' ? '5' : '4'}</div>
-                    <h3 className="text-xl font-bold text-gray-900">Set Primary & Fallback Models</h3>
+            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="mb-3">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                        {providerKey === 'custom' ? '5' : '4'}. Primary & Fallback Models
+                    </label>
+                    <p className="text-xs text-slate-500 mb-3">
+                        Set your primary model and optional fallbacks
+                    </p>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
-                    Choose your primary model and optional fallbacks. If the primary model fails, the system will try fallbacks in order.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label htmlFor="primaryModel" className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                            <span className="text-red-500">*</span>
-                            Primary Model
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                        <label htmlFor="primaryModel" className="text-xs font-semibold text-slate-700">
+                            Primary Model <span className="text-red-500">*</span>
                         </label>
                         <select
                             id="primaryModel"
@@ -1056,9 +1039,9 @@ const ModelsTab = () => {
                             name="primaryModel"
                             aria-label="Primary model"
                             required
-                            className={`w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm font-medium shadow-sm hover:border-blue-400 transition-colors ${FOCUS_RING}`}
+                            className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
                         >
-                            <option value="">-- Select primary model --</option>
+                            <option value="">-- Select primary --</option>
                             {enabledModels.map((modelKey) => (
                                 <option key={modelKey} value={modelKey}>
                                     {modelKey}
@@ -1066,11 +1049,11 @@ const ModelsTab = () => {
                             ))}
                         </select>
                         {primaryModel && (
-                            <p className="text-xs text-green-600 font-semibold mt-1">✓ Primary: {primaryModel}</p>
+                            <p className="text-xs text-green-600 font-medium">✓ {primaryModel}</p>
                         )}
                     </div>
-                    <div className="space-y-2">
-                        <label htmlFor="fallbackModels" className="text-sm font-bold text-slate-700">
+                    <div className="space-y-1.5">
+                        <label htmlFor="fallbackModels" className="text-xs font-semibold text-slate-700">
                             Fallback Models (Optional)
                         </label>
                         <select
@@ -1083,7 +1066,7 @@ const ModelsTab = () => {
                             }}
                             name="fallbackModels"
                             aria-label="Fallback models"
-                            className={`h-32 w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm shadow-sm hover:border-blue-400 transition-colors ${FOCUS_RING}`}
+                            className={`h-32 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm transition-colors hover:border-slate-400 ${FOCUS_RING}`}
                         >
                             {enabledModels.filter(m => m !== primaryModel).map((modelKey) => (
                                 <option key={modelKey} value={modelKey}>
@@ -1091,40 +1074,39 @@ const ModelsTab = () => {
                                 </option>
                             ))}
                         </select>
-                        <p className="text-xs text-gray-500">Hold Ctrl/Cmd to select multiple. {fallbacks.length > 0 && `Selected: ${fallbacks.length}`}</p>
+                        <p className="text-xs text-slate-500">Hold Ctrl/Cmd to select multiple {fallbacks.length > 0 && `(${fallbacks.length} selected)`}</p>
                     </div>
                 </div>
-            </div>
 
-            {error && (
-                <div className="flex items-center gap-2 text-red-700 bg-red-50 border-2 border-red-200 rounded-lg px-4 py-3">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                    </svg>
-                    <span className="font-semibold">{error}</span>
-                </div>
-            )}
+                {error && (
+                    <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm mt-3">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                        </svg>
+                        <span className="font-medium">{error}</span>
+                    </div>
+                )}
 
-            {/* Final Step: Save Configuration */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-md">
                 <button
                     type="button"
                     onClick={handleSaveConfig}
                     disabled={saving || !primaryModel}
-                    className={`flex items-center justify-center gap-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-blue-600 disabled:hover:to-indigo-600 ${FOCUS_RING} w-full md:w-auto`}
+                    className={`mt-4 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING} w-full md:w-auto`}
                 >
-                    <Save className="w-6 h-6" aria-hidden="true" />
-                    {saving ? 'Saving Configuration...' : 'Save Complete Configuration'}
+                    <Save className="w-4 h-4" />
+                    {saving ? 'Saving...' : 'Save Configuration'}
                 </button>
+
                 {!primaryModel && (
-                    <p className="text-sm text-amber-700 mt-3 font-medium">⚠️ Please select a primary model before saving</p>
+                    <p className="text-xs text-amber-600 mt-2">Select a primary model first</p>
                 )}
+
                 {status && (
-                    <div className="flex items-center gap-2 text-green-700 bg-green-50 border-2 border-green-200 rounded-lg px-4 py-3 mt-4">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm mt-3">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                         </svg>
-                        <span className="font-semibold">{status}</span>
+                        <span className="font-medium">{status}</span>
                     </div>
                 )}
             </div>
