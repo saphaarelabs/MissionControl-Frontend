@@ -79,8 +79,8 @@ createRoot(document.getElementById('root')).render(
       publishableKey={PUBLISHABLE_KEY}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      signInFallbackRedirectUrl="/app"
-      signUpFallbackRedirectUrl="/onboarding"
+      signInFallbackRedirectUrl="/sso-callback"
+      signUpFallbackRedirectUrl="/sso-callback"
       afterSignOutUrl="/"
       appearance={clerkAppearance}
     >
