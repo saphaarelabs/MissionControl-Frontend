@@ -50,8 +50,8 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
             const body = {
                 task: formData.task.trim(),
                 label: formData.label.trim() || undefined,
-                model: formData.model || undefined,
-                agentId: 'main'
+                model: formData.model || undefined
+                // Let backend generate agentId from label or timestamp
             };
 
             const response = await apiAuthFetch('/api/subagents/spawn', {
