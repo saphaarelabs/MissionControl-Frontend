@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { AuthenticateWithRedirectCallback, useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiAuthFetch } from '../lib/apiBase';
 
 export default function SsoCallback() {
     const { isLoaded, isSignedIn, user } = useUser();
     const navigate = useNavigate();
+    const location = useLocation();
     const [isChecking, setIsChecking] = useState(false);
-    const [shouldShowCallback, setShouldShowCallback] = useState(true);
+    const searchParams = new URLSearchParams(location.search);
+    const shouldShowCallback = searchParams.get('oauth_complete') !== '1';
 
     useEffect(() => {
         const checkAndRedirect = async () => {
+            if (shouldShowCallback) return;
             // Wait for Clerk to fully load and sign in the user
             if (!isLoaded || !isSignedIn || !user || isChecking) return;
 
             setIsChecking(true);
-            setShouldShowCallback(false); // Hide the callback component once we start checking
             console.log('[SsoCallback] User signed in, checking profile status...');
 
             // Small delay to ensure Clerk session is fully established
@@ -33,6 +35,7 @@ export default function SsoCallback() {
                     // If no profile or profile has no operation_status, they're new -> onboarding
                     if (!profile || !profile.operation_status) {
                         console.log('[SsoCallback] New user detected (no profile or no operation_status), redirecting to /onboarding');
+                        window.history.replaceState({}, document.title, window.location.pathname);
                         navigate('/onboarding', { replace: true });
                         return;
                     }
@@ -40,27 +43,31 @@ export default function SsoCallback() {
                     // If user has onboarding data but is still provisioning, go to provisioning page
                     if (profile.operation_status === 'provisioning' || profile.operation_status === 'onboarded') {
                         console.log('[SsoCallback] User is provisioning, redirecting to /provisioning');
+                        window.history.replaceState({}, document.title, window.location.pathname);
                         navigate('/provisioning', { replace: true });
                         return;
                     }
                     
                     // Existing user with ready status -> dashboard
                     console.log('[SsoCallback] Existing user with operation_status:', profile.operation_status, '-> redirecting to /app');
+                    window.history.replaceState({}, document.title, window.location.pathname);
                     navigate('/app', { replace: true });
                 } else {
                     // If profile fetch fails, assume new user
                     console.log('[SsoCallback] Profile fetch failed with status:', res.status, '-> assuming new user');
+                    window.history.replaceState({}, document.title, window.location.pathname);
                     navigate('/onboarding', { replace: true });
                 }
             } catch (err) {
                 console.error('[SsoCallback] Error checking user profile:', err);
                 // On error, go to onboarding to be safe
+                window.history.replaceState({}, document.title, window.location.pathname);
                 navigate('/onboarding', { replace: true });
             }
         };
 
         checkAndRedirect();
-    }, [isLoaded, isSignedIn, user, navigate, isChecking]);
+    }, [isLoaded, isSignedIn, user, navigate, isChecking, shouldShowCallback]);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center px-6 py-12">
@@ -71,9 +78,9 @@ export default function SsoCallback() {
                     <AuthenticateWithRedirectCallback
                         signInUrl="/sign-in"
                         signUpUrl="/sign-up"
-                        afterSignInUrl="/sso-callback"
-                        afterSignUpUrl="/sso-callback"
-                        continueSignUpUrl="/sso-callback"
+                        signInForceRedirectUrl="/sso-callback?oauth_complete=1&intent=sign-in"
+                        signUpForceRedirectUrl="/sso-callback?oauth_complete=1&intent=sign-up"
+                        continueSignUpUrl="/sso-callback?oauth_complete=1&intent=sign-up"
                     />
                 )}
             </div>

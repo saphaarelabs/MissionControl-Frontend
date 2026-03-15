@@ -103,6 +103,14 @@ const ModelsTab = () => {
     const [error, setError] = useState('');
     const [status, setStatus] = useState('');
 
+    const normalizeCustomProviderModelId = (providerKey, rawId) => {
+        const trimmed = String(rawId || '').trim();
+        if (!trimmed) return '';
+        const firstSlash = trimmed.indexOf('/');
+        const suffix = firstSlash >= 0 ? trimmed.slice(firstSlash + 1) : trimmed;
+        return `${providerKey}/${suffix}`;
+    };
+
     // Plugin OAuth state
     const [pluginOAuth, setPluginOAuth] = useState({
         isActive: false,
@@ -528,7 +536,7 @@ const ModelsTab = () => {
                 .split('\n')
                 .map(line => line.trim())
                 .filter(Boolean)
-                .map(id => ({ id }));
+                .map(id => ({ id: normalizeCustomProviderModelId(customKey, id) }));
 
             const response = await apiAuthFetch('/api/providers/custom', {
                 method: 'POST',
