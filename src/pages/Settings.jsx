@@ -95,7 +95,7 @@ const ModelsTab = () => {
     const [customBaseUrl, setCustomBaseUrl] = useState('');
     const [customApi, setCustomApi] = useState('openai');
     const [customApiKey, setCustomApiKey] = useState('');
-    const [customAuthHeader, setCustomAuthHeader] = useState('Authorization');
+    const [customAuthHeader, setCustomAuthHeader] = useState('');
     const [customHeadersJson, setCustomHeadersJson] = useState('');
     const [customModels, setCustomModels] = useState('');
     const [loading, setLoading] = useState(true);
@@ -924,7 +924,7 @@ const ModelsTab = () => {
                             onChange={(e) => setCustomAuthHeader(e.target.value)}
                             aria-label="Custom provider auth header"
                             className={`rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm ${FOCUS_RING}`}
-                            placeholder="Auth header (default: Authorization)"
+                            placeholder="Force Authorization header (optional)"
                         />
                         <textarea
                             value={customHeadersJson}
