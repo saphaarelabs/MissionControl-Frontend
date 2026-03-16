@@ -3,10 +3,10 @@ import { apiAuthFetch } from '../lib/apiBase';
 import { Plus, Calendar, MessageSquare, Cpu } from 'lucide-react';
 
 const COLUMNS = [
-    { id: 'inbox', title: 'INBOX', dot: 'bg-gray-400' },
+    { id: 'inbox', title: 'TRIAGE', dot: 'bg-gray-400' },
     { id: 'assigned', title: 'ASSIGNED', dot: 'bg-blue-400' },
     { id: 'active', title: 'IN PROGRESS', dot: 'bg-emerald-500' },
-    { id: 'review', title: 'REVIEW', dot: 'bg-amber-500' },
+    { id: 'review', title: 'ATTENTION', dot: 'bg-amber-500' },
     { id: 'done', title: 'DONE', dot: 'bg-green-500' }
 ];
 
@@ -62,19 +62,52 @@ const KanbanBoard = () => {
         return task?.metadata?.status || task?.status || '';
     };
 
+    const formatStatusLabel = (status) => {
+        const normalized = String(status || '').replace(/_/g, ' ').trim();
+        return normalized ? normalized.replace(/\b\w/g, (ch) => ch.toUpperCase()) : 'Unknown';
+    };
+
+    const getStatusTone = (status) => {
+        switch (status) {
+        case 'completed':
+            return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        case 'in_progress':
+        case 'picked_up':
+            return 'bg-blue-50 text-blue-700 border-blue-100';
+        case 'assigned':
+            return 'bg-sky-50 text-sky-700 border-sky-100';
+        case 'awaiting_connection':
+        case 'awaiting_approval':
+        case 'blocked':
+        case 'failed':
+            return 'bg-amber-50 text-amber-700 border-amber-100';
+        case 'triage':
+            return 'bg-slate-100 text-slate-700 border-slate-200';
+        default:
+            return 'bg-slate-100 text-slate-700 border-slate-200';
+        }
+    };
+
+    const summarizeTaskNote = (task) => {
+        return task?.metadata?.lastDecision?.reason
+            || task?.metadata?.lastRun?.summary
+            || task?.metadata?.manager?.reason
+            || task?.metadata?.message
+            || 'No notes yet.';
+    };
+
     const getColumnTasks = (columnId) => {
-        const known = new Set(['completed', 'failed', 'review', 'picked_up', 'assigned', 'run_requested', 'scheduled', 'disabled']);
+        const known = new Set(['completed', 'failed', 'review', 'picked_up', 'assigned', 'run_requested', 'scheduled', 'disabled', 'triage', 'in_progress', 'awaiting_connection', 'awaiting_approval', 'blocked']);
         const byStatus = (status) => tasks.filter(t => getTaskStatus(t) === status);
 
         if (columnId === 'done') return byStatus('completed');
-        if (columnId === 'failed') return byStatus('failed');
-        if (columnId === 'review') return byStatus('review');
-        if (columnId === 'active') return byStatus('picked_up');
+        if (columnId === 'review') return byStatus('blocked').concat(byStatus('awaiting_connection')).concat(byStatus('awaiting_approval')).concat(byStatus('failed')).concat(byStatus('review'));
+        if (columnId === 'active') return byStatus('in_progress').concat(byStatus('picked_up'));
         if (columnId === 'assigned') return byStatus('assigned').concat(byStatus('run_requested')).concat(byStatus('scheduled'));
         if (columnId === 'inbox') {
             return tasks.filter((t) => {
                 const s = String(getTaskStatus(t) || '').trim();
-                if (!s) return true;
+                if (!s || s === 'triage') return true;
                 if (s === 'disabled') return true;
                 return !known.has(s);
             });
@@ -195,7 +228,7 @@ const KanbanBoard = () => {
                         >
                             <div className="border-b border-gray-200 px-4 py-3">
                                 <div id="create-task-title" className="text-sm font-semibold text-gray-900">Create task</div>
-                                <div className="text-xs text-gray-500">This will run automatically.</div>
+                                <div className="text-xs text-gray-500">Mission Manager will triage, assign, and leave honest status updates.</div>
                             </div>
 
                             <div className="space-y-3 p-4">
@@ -301,17 +334,17 @@ const KanbanBoard = () => {
                                                         {task.name}
                                                     </h4>
                                                     <p className="text-[12px] text-gray-400 leading-normal line-clamp-2 mb-4">
-                                                        {task.payload?.message || task?.metadata?.message || 'No description provided for this mission goal.'}
+                                                        {summarizeTaskNote(task)}
                                                     </p>
 
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex min-w-0 items-center gap-2">
                                                             <div className={`w-5 h-5 rounded-md ${task.agentId?.toLowerCase().includes('fury') ? 'bg-red-100 text-red-600' :
                                                                 'bg-blue-100 text-blue-600'
                                                                 } flex items-center justify-center text-[10px] font-bold`}>
                                                                 {(task.agentId || 'J').charAt(0).toUpperCase()}
                                                             </div>
-                                                            <span className="text-[11px] font-bold text-gray-600">{task.agentId || 'Jarvis'}</span>
+                                                            <span className="truncate text-[11px] font-bold text-gray-600">{task.metadata?.assignedAgentId || task.agentId || 'Mission Manager'}</span>
                                                         </div>
                                                         <span className="text-[10px] font-medium text-gray-300">
                                                             {task.metadata?.createdAt ? new Date(task.metadata.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'recently'}
@@ -319,9 +352,19 @@ const KanbanBoard = () => {
                                                     </div>
 
                                                     <div className="mt-3 flex flex-wrap gap-1.5 leading-none">
-                                                        <span className="px-2 py-1 bg-gray-100/50 text-gray-400 text-[9px] font-bold rounded uppercase tracking-wider">research</span>
-                                                        {column.id === 'inbox' && <span className="px-2 py-1 bg-gray-100/50 text-gray-400 text-[9px] font-bold rounded uppercase tracking-wider">content</span>}
-                                                        {column.id === 'active' && <span className="px-2 py-1 bg-gray-100/50 text-gray-400 text-[9px] font-bold rounded uppercase tracking-wider">internal</span>}
+                                                        <span className={`rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wider ${getStatusTone(getTaskStatus(task))}`}>
+                                                            {formatStatusLabel(getTaskStatus(task))}
+                                                        </span>
+                                                        {task.metadata?.managerAgentId && (
+                                                            <span className="rounded-full border border-violet-100 bg-violet-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-violet-700">
+                                                                Manager: {task.metadata.managerAgentId}
+                                                            </span>
+                                                        )}
+                                                        {(task.metadata?.requiredApps || []).slice(0, 2).map((app) => (
+                                                            <span key={app} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                                                                {app}
+                                                            </span>
+                                                        ))}
                                                     </div>
                                                 </div>
                                             </div>
@@ -385,10 +428,18 @@ const KanbanBoard = () => {
                                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <Field label="ID" value={detailsTask.id} />
                                             <Field label="Status" value={getTaskStatus(detailsTask) || '—'} />
-                                            <Field label="Agent" value={detailsTask.agentId || '—'} />
+                                            <Field label="Assigned Agent" value={detailsTask?.metadata?.assignedAgentId || detailsTask.agentId || '—'} />
+                                            <Field label="Manager" value={detailsTask?.metadata?.managerAgentId || 'main'} />
                                             <Field label="Priority" value={detailsTask?.metadata?.priority ? `p${detailsTask.metadata.priority}` : '—'} />
                                             <Field label="Created" value={detailsTask?.metadata?.createdAt || detailsTask?.createdAt || '—'} />
                                             <Field label="Updated" value={detailsTask?.metadata?.updatedAt || detailsTask?.updatedAt || '—'} />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <Field label="Requested Agent" value={detailsTask?.metadata?.requestedAgentId || 'auto-select'} />
+                                            <Field label="Primary Model" value={detailsTask?.model || '—'} />
+                                            <Field label="Required Capabilities" value={(detailsTask?.metadata?.requiredCapabilities || []).join(', ') || '—'} />
+                                            <Field label="Required Apps" value={(detailsTask?.metadata?.requiredApps || []).join(', ') || '—'} />
                                         </div>
 
                                         <div>
