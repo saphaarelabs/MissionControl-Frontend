@@ -13,14 +13,24 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
 
     const [formData, setFormData] = useState({
         label: '',
-        task: '',
+        identityMd: '',
+        soulMd: '',
+        agentsMd: '',
+        initialTask: '',
         model: ''
     });
 
     useEffect(() => {
         if (!isOpen) return;
         setError(null);
-        setFormData({ label: '', task: '', model: '' });
+        setFormData({
+            label: '',
+            identityMd: '',
+            soulMd: '',
+            agentsMd: '',
+            initialTask: '',
+            model: ''
+        });
 
         const load = async () => {
             setLoadingModels(true);
@@ -61,18 +71,53 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
 
     if (!isOpen) return null;
 
+    const applyLabelPreset = (nextLabel) => {
+        setFormData((current) => {
+            const trimmed = nextLabel.trim();
+            const autoIdentity = current.identityMd.trim() === '' || current.identityMd.includes('You are ') || current.identityMd.startsWith('# ');
+            const autoSoul = current.soulMd.trim() === '' || current.soulMd.startsWith('# Working Style');
+            const autoAgents = current.agentsMd.trim() === '' || current.agentsMd.startsWith('# Operating Rules');
+
+            return {
+                ...current,
+                label: nextLabel,
+                identityMd: autoIdentity ? [
+                    `# ${trimmed || 'Specialist agent'}`,
+                    '',
+                    `You are ${trimmed || 'a specialist agent'}.`,
+                    'Own the domain you were created for, communicate clearly, and stay aligned with the workspace mission.'
+                ].join('\n') : current.identityMd,
+                soulMd: autoSoul ? [
+                    '# Working Style',
+                    '',
+                    'Operate with calm judgment, evidence-driven thinking, and direct communication.',
+                    'Prefer depth over speed when the task is ambiguous, and summarize tradeoffs clearly.'
+                ].join('\n') : current.soulMd,
+                agentsMd: autoAgents ? [
+                    '# Operating Rules',
+                    '',
+                    `You are the ${trimmed || 'specialist'} agent.`,
+                    'Start by clarifying the objective, gather the strongest evidence available, and produce structured outputs.',
+                    'Escalate uncertainties instead of guessing, and keep notes concise and useful for the rest of the team.'
+                ].join('\n') : current.agentsMd
+            };
+        });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.task.trim()) return;
+        if (![formData.label, formData.identityMd, formData.soulMd, formData.agentsMd, formData.initialTask].some((value) => value.trim())) return;
         setSpawning(true);
         setError(null);
 
         try {
             const body = {
-                task: formData.task.trim(),
                 label: formData.label.trim() || undefined,
+                identityMd: formData.identityMd.trim() || undefined,
+                soulMd: formData.soulMd.trim() || undefined,
+                agentsMd: formData.agentsMd.trim() || undefined,
+                initialTask: formData.initialTask.trim() || undefined,
                 model: formData.model || undefined
-                // Let backend generate agentId from label or timestamp
             };
 
             const response = await apiAuthFetch('/api/subagents/spawn', {
@@ -135,33 +180,74 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
 
                         <div>
                             <label htmlFor="spawn-label" className="mb-1 block text-sm font-medium text-gray-700">
-                                Label <span className="font-normal text-gray-400">(optional)</span>
+                                Agent name
                             </label>
                             <input
                                 id="spawn-label"
                                 type="text"
                                 value={formData.label}
-                                onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+                                onChange={(e) => applyLabelPreset(e.target.value)}
                                 autoComplete="off"
                                 className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors ${FOCUS_RING}`}
-                                placeholder="e.g. Research, Coder, Writer"
+                                placeholder="e.g. Research & Writer"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="spawn-task" className="mb-1 block text-sm font-medium text-gray-700">
-                                Task / Role <span className="text-red-500">*</span>
+                            <label htmlFor="spawn-identity" className="mb-1 block text-sm font-medium text-gray-700">
+                                Identity.md
                             </label>
                             <textarea
-                                id="spawn-task"
-                                value={formData.task}
-                                onChange={(e) => setFormData({ ...formData, task: e.target.value })}
-                                required
+                                id="spawn-identity"
+                                value={formData.identityMd}
+                                onChange={(e) => setFormData({ ...formData, identityMd: e.target.value })}
+                                rows={4}
+                                className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors resize-y ${FOCUS_RING}`}
+                                placeholder="Who this agent is, what role it owns, and how it should introduce itself."
+                            />
+                            <p className="mt-1 text-xs text-gray-500">This becomes the agent identity file inside its workspace.</p>
+                        </div>
+
+                        <div>
+                            <label htmlFor="spawn-soul" className="mb-1 block text-sm font-medium text-gray-700">
+                                SOUL.md
+                            </label>
+                            <textarea
+                                id="spawn-soul"
+                                value={formData.soulMd}
+                                onChange={(e) => setFormData({ ...formData, soulMd: e.target.value })}
+                                rows={4}
+                                className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors resize-y ${FOCUS_RING}`}
+                                placeholder="Working style, tone, values, and decision-making preferences."
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="spawn-agents" className="mb-1 block text-sm font-medium text-gray-700">
+                                AGENTS.md
+                            </label>
+                            <textarea
+                                id="spawn-agents"
+                                value={formData.agentsMd}
+                                onChange={(e) => setFormData({ ...formData, agentsMd: e.target.value })}
                                 rows={5}
                                 className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors resize-y ${FOCUS_RING}`}
-                                placeholder="Describe what this agent should do, e.g. 'Search the web and summarize news about AI. Focus on recent developments.'"
+                                placeholder="Operating rules, quality bar, escalation policy, and execution guidance."
                             />
-                            <p className="mt-1 text-xs text-gray-500">This becomes the agent's initial instruction.</p>
+                        </div>
+
+                        <div>
+                            <label htmlFor="spawn-initial-task" className="mb-1 block text-sm font-medium text-gray-700">
+                                Optional kickoff task <span className="font-normal text-gray-400">(runs after creation)</span>
+                            </label>
+                            <textarea
+                                id="spawn-initial-task"
+                                value={formData.initialTask}
+                                onChange={(e) => setFormData({ ...formData, initialTask: e.target.value })}
+                                rows={3}
+                                className={`w-full rounded-xl border border-gray-300 px-3 py-2.5 shadow-sm transition-colors resize-y ${FOCUS_RING}`}
+                                placeholder="Optional first assignment for the new agent."
+                            />
                         </div>
 
                         <div>
@@ -199,11 +285,11 @@ const CreateAgentModal = ({ isOpen, onClose, onCreated }) => {
                             </button>
                             <button
                                 type="submit"
-                                disabled={spawning || !formData.task.trim()}
+                                disabled={spawning || ![formData.label, formData.identityMd, formData.soulMd, formData.agentsMd, formData.initialTask].some((value) => value.trim())}
                                 className={`flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
                             >
                                 <Zap className="w-4 h-4" aria-hidden="true" />
-                                {spawning ? 'Spawning…' : 'Spawn'}
+                                {spawning ? 'Creating…' : 'Create agent'}
                             </button>
                         </div>
                     </form>
