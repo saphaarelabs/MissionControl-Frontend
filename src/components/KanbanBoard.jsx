@@ -435,15 +435,31 @@ const KanbanBoard = () => {
 
                                                         {/* Narrative History */}
                                                         {Array.isArray(detailsTask?.metadata?.narrative) && detailsTask.metadata.narrative.map((n, idx) => (
-                                                            <div key={idx} className="flex flex-col gap-1 rounded-xl bg-slate-50 border border-slate-100 p-3 shadow-sm transition-all hover:border-blue-100 hover:bg-blue-50/30">
+                                                            <div
+                                                                key={idx}
+                                                                className={`flex flex-col gap-1 rounded-xl border p-3 shadow-sm transition-all ${
+                                                                    n.role === 'agent_message'
+                                                                        ? 'border-amber-100 bg-amber-50/60 hover:border-amber-200 hover:bg-amber-50'
+                                                                        : 'border-slate-100 bg-slate-50 hover:border-blue-100 hover:bg-blue-50/30'
+                                                                }`}
+                                                            >
                                                                 <div className="flex items-center justify-between gap-4">
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="h-4 w-4 rounded-full bg-blue-100 flex items-center justify-center">
-                                                                            <Cpu className="h-2.5 w-2.5 text-blue-600" />
+                                                                        <div className={`h-4 w-4 rounded-full flex items-center justify-center ${
+                                                                            n.role === 'agent_message' ? 'bg-amber-100' : 'bg-blue-100'
+                                                                        }`}>
+                                                                            <Cpu className={`h-2.5 w-2.5 ${n.role === 'agent_message' ? 'text-amber-600' : 'text-blue-600'}`} />
                                                                         </div>
-                                                                        <span className="text-[10px] font-extrabold text-blue-700 uppercase tracking-widest">
+                                                                        <span className={`text-[10px] font-extrabold uppercase tracking-widest ${
+                                                                            n.role === 'agent_message' ? 'text-amber-700' : 'text-blue-700'
+                                                                        }`}>
                                                                             {n.agentId || 'system'}
                                                                         </span>
+                                                                        {n.role === 'agent_message' && (
+                                                                            <span className="rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-700">
+                                                                                Inter-agent
+                                                                            </span>
+                                                                        )}
                                                                     </div>
                                                                     <span className="text-[9px] font-medium text-slate-400 tabular-nums">
                                                                         {n.ts ? new Date(n.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
