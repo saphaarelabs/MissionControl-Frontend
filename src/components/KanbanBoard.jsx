@@ -126,7 +126,6 @@ const KanbanBoard = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message,
-                    agentId: 'main',
                     priority,
                     source: 'kanban',
                     name: `Task: ${message.slice(0, 60)}${message.length > 60 ? '…' : ''}`
