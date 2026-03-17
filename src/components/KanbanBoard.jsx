@@ -679,6 +679,18 @@ const KanbanBoard = () => {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {String(detailsTask?.metadata?.lastRun?.output || '').trim() && (
+                                            <div>
+                                                <div className="text-xs font-semibold text-gray-700 flex items-center gap-2">
+                                                    <FileText className="w-3.5 h-3.5 text-slate-600" />
+                                                    Raw agent output
+                                                </div>
+                                                <div className="mt-2 max-h-[260px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-[11px] leading-5 text-slate-100 whitespace-pre-wrap break-words">
+                                                    {String(detailsTask.metadata.lastRun.output)}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
