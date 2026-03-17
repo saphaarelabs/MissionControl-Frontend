@@ -16,6 +16,7 @@ import {
     Zap,
 } from 'lucide-react';
 import { apiAuthFetch } from '../lib/apiBase';
+import WorkspaceLoadingScreen from '../components/WorkspaceLoadingScreen';
 
 const STEPS = [
     {
@@ -243,17 +244,10 @@ export default function Onboarding() {
 
     if (checkingStatus) {
         return (
-            <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_38%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] px-6">
-                <div className="w-full max-w-xl rounded-[32px] border border-slate-200 bg-white/90 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-                    <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-600" />
-                    </div>
-                    <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Preparing your setup flow</h1>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                        We are checking whether this workspace is new, already provisioning, or ready to enter the command center.
-                    </p>
-                </div>
-            </div>
+            <WorkspaceLoadingScreen
+                title="Preparing your setup"
+                body="We are checking whether this workspace is new, already provisioning, or ready to open."
+            />
         );
     }
 
@@ -288,7 +282,7 @@ export default function Onboarding() {
                             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-200">Mission Control Setup</div>
                             <h1 className="mt-4 text-3xl font-black tracking-tight">Launch your workspace with confidence</h1>
                             <p className="mt-4 text-sm leading-6 text-slate-300">
-                                We will collect the minimum details needed to provision your dedicated OpenClaw environment and hand you off to live operations cleanly.
+                                A short setup, then we provision your workspace and hand you into Mission Control.
                             </p>
                         </div>
 
@@ -346,19 +340,19 @@ export default function Onboarding() {
                         </div>
 
                         <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">What happens next</div>
+                            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">After launch</div>
                             <div className="mt-3 space-y-3 text-sm text-slate-600">
                                 <div className="flex gap-3">
                                     <ShieldCheck className="mt-0.5 h-4 w-4 text-blue-600" />
-                                    <span>Your profile is synced to the backend and control plane.</span>
+                                    <span>Your profile is saved and queued for provisioning.</span>
                                 </div>
                                 <div className="flex gap-3">
                                     <Bot className="mt-0.5 h-4 w-4 text-blue-600" />
-                                    <span>A dedicated OpenClaw instance is provisioned on your assigned VPS.</span>
+                                    <span>A dedicated OpenClaw instance is prepared on your VPS.</span>
                                 </div>
                                 <div className="flex gap-3">
                                     <Sparkles className="mt-0.5 h-4 w-4 text-blue-600" />
-                                    <span>Provider credentials can be refined later in Settings without repeating onboarding.</span>
+                                    <span>You can refine models, apps, and channels later in Settings.</span>
                                 </div>
                             </div>
                         </div>
@@ -374,7 +368,7 @@ export default function Onboarding() {
                                     </div>
                                     <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Set the identity of your control plane</h2>
                                     <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600">
-                                        This information is used to name the workspace, personalize the assistant surfaces, and keep your provisioning records consistent.
+                                        Choose the name and handle we should use across the workspace.
                                     </p>
 
                                     <div className="mt-8 grid gap-5">
@@ -414,7 +408,7 @@ export default function Onboarding() {
                                                 className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                                                 placeholder="+1 555 000 0000"
                                             />
-                                            <p className="mt-2 text-sm text-slate-500">Optional. Useful if you plan to wire channels that depend on operator escalation.</p>
+                                            <p className="mt-2 text-sm text-slate-500">Optional. Add it now if you plan to use operator-facing channels later.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -427,7 +421,7 @@ export default function Onboarding() {
                                     <div className="mt-5 text-xl font-black text-slate-900">{formData.fullName || 'Your workspace name'}</div>
                                     <div className="mt-1 text-sm font-semibold text-blue-700">@{normalizeUsername(formData.username) || 'workspace-handle'}</div>
                                     <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
-                                        This identity will appear in provisioning records, operator context, and setup summaries. You can still refine the agent persona later.
+                                        This shows up across provisioning, operator context, and workspace summaries.
                                     </div>
                                 </div>
                             </div>
@@ -441,7 +435,7 @@ export default function Onboarding() {
                                 </div>
                                 <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Decide how this workspace gets model access</h2>
                                 <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
-                                    Start with the managed default stack for the smoothest launch, or add provider credentials now so the workspace is ready to authenticate immediately after provisioning.
+                                    Start with the managed default, or add your own provider key now.
                                 </p>
 
                                 <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -460,7 +454,7 @@ export default function Onboarding() {
                                             </div>
                                         </div>
                                         <p className="mt-5 text-sm leading-6 text-slate-600">
-                                            We provision the instance without asking for a provider key yet. You can fine-tune providers, models, and routing later from Settings.
+                                            Fastest path. You can adjust providers and routing later in Settings.
                                         </p>
                                     </button>
 
@@ -479,7 +473,7 @@ export default function Onboarding() {
                                             </div>
                                         </div>
                                         <p className="mt-5 text-sm leading-6 text-slate-600">
-                                            We will store the provider credential while provisioning. Primary-model routing still remains editable later, which keeps this step stable and low-risk.
+                                            Store provider access during setup. Exact routing can still be changed later.
                                         </p>
                                     </button>
                                 </div>
@@ -523,7 +517,7 @@ export default function Onboarding() {
                                                     className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base text-slate-900 outline-none transition-colors focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                                                     placeholder={selectedProvider.modelPlaceholder}
                                                 />
-                                                <p className="mt-2 text-sm text-slate-500">Optional. This is recorded as a preference, but you can still set the primary model later in Settings.</p>
+                                                <p className="mt-2 text-sm text-slate-500">Optional. Treat this as a starting preference.</p>
                                             </div>
                                         </div>
 
@@ -531,10 +525,10 @@ export default function Onboarding() {
                                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Provisioning note</div>
                                             <div className="mt-4 text-lg font-black text-slate-900">{selectedProvider.label} credential capture</div>
                                             <p className="mt-3 text-sm leading-6 text-slate-600">
-                                                During provisioning we only store the credential needed for provider authentication. Full custom-provider setup and exact model routing remain available in the Settings page after launch.
+                                                We only store what is needed for provider authentication. Full provider setup stays editable after launch.
                                             </p>
                                             <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-600">
-                                                This keeps onboarding dependable and avoids a false promise that model routing has already been finalized before the instance is ready.
+                                                This keeps setup dependable and avoids locking model routing too early.
                                             </div>
                                         </div>
                                     </div>
@@ -550,7 +544,7 @@ export default function Onboarding() {
                                 </div>
                                 <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Choose the channels you expect to wire first</h2>
                                 <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
-                                    This does not force credentials immediately. It helps us tailor the workspace state so the first channel setup in Settings feels intentional instead of generic.
+                                    This just stages the workspace. You can finish channel setup later in Settings.
                                 </p>
 
                                 <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -595,7 +589,7 @@ export default function Onboarding() {
                                     </div>
                                     <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Review the workspace launch plan</h2>
                                     <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
-                                        This is the last checkpoint before we sync your profile, queue provisioning if needed, and move you into the live provisioning screen.
+                                        Final check before we queue provisioning and move you into the live status screen.
                                     </p>
 
                                     <div className="mt-8 grid gap-4">
@@ -611,8 +605,8 @@ export default function Onboarding() {
                                             <div className="mt-3 text-xl font-black text-slate-900">{stepSummary(formData)}</div>
                                             <div className="mt-2 text-sm leading-6 text-slate-600">
                                                 {formData.llmType === 'default'
-                                                    ? 'Provision the workspace first, then refine providers and primary model in Settings.'
-                                                    : `${selectedProvider.label} credentials will be stored during provisioning. Preferred model: ${formData.model.trim() || 'set later in Settings'}.`}
+                                                    ? 'We will provision first, then you can refine providers and routing in Settings.'
+                                                    : `${selectedProvider.label} credentials will be stored now. Preferred model: ${formData.model.trim() || 'set later in Settings'}.`}
                                             </div>
                                         </div>
 
@@ -638,15 +632,15 @@ export default function Onboarding() {
                                     <div className="mt-6 space-y-4">
                                         <div>
                                             <div className="text-sm font-bold">1. Sync profile</div>
-                                            <div className="mt-1 text-sm text-slate-300">We persist your onboarding data and mark the workspace for provisioning.</div>
+                                            <div className="mt-1 text-sm text-slate-300">Save onboarding data and queue the workspace.</div>
                                         </div>
                                         <div>
                                             <div className="text-sm font-bold">2. Allocate infrastructure</div>
-                                            <div className="mt-1 text-sm text-slate-300">The control plane assigns capacity or queues a node when needed.</div>
+                                            <div className="mt-1 text-sm text-slate-300">Assign capacity or queue a node if needed.</div>
                                         </div>
                                         <div>
                                             <div className="text-sm font-bold">3. Hand off to live operations</div>
-                                            <div className="mt-1 text-sm text-slate-300">You land on a provisioning screen with honest service and workspace status instead of fake progress.</div>
+                                            <div className="mt-1 text-sm text-slate-300">Move you to live provisioning status.</div>
                                         </div>
                                     </div>
                                 </div>

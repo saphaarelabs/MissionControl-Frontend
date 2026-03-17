@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { AlertTriangle, RefreshCcw } from 'lucide-react';
@@ -7,6 +7,7 @@ import AgentSidebar from './AgentSidebar';
 import FeedSidebar from './FeedSidebar';
 import BroadcastSidebar from './BroadcastSidebar';
 import AgentSettingsModal from './AgentSettingsModal';
+import WorkspaceLoadingScreen from './WorkspaceLoadingScreen';
 import { apiAuthFetch } from '../lib/apiBase';
 
 function AccessState({ title, body, actionLabel, onAction }) {
@@ -63,6 +64,8 @@ const Layout = () => {
 
     const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
     const [isResizingRight, setIsResizingRight] = useState(false);
+    const [routeLoading, setRouteLoading] = useState(false);
+    const initialPathRef = useRef(location.pathname);
 
     const checkProfile = useCallback(async () => {
         if (!isLoaded || !isSignedIn || !user?.id) return;
@@ -168,19 +171,20 @@ const Layout = () => {
         window.location.reload();
     };
 
+    useEffect(() => {
+        if (initialPathRef.current === location.pathname) return;
+        initialPathRef.current = location.pathname;
+        setRouteLoading(true);
+        const timer = window.setTimeout(() => setRouteLoading(false), 420);
+        return () => window.clearTimeout(timer);
+    }, [location.pathname]);
+
     if (accessState.loading) {
         return (
-            <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_42%),linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] px-6">
-                <div className="w-full max-w-xl rounded-[28px] border border-slate-200 bg-white/90 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-                    <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-600" />
-                    </div>
-                    <h1 className="mt-6 text-2xl font-black tracking-tight text-slate-900">Loading your workspace</h1>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">
-                        We are checking your current environment and routing you to the right place.
-                    </p>
-                </div>
-            </div>
+            <WorkspaceLoadingScreen
+                title="Loading your workspace"
+                body="We are checking the environment and routing you to the right surface."
+            />
         );
     }
 
@@ -208,6 +212,13 @@ const Layout = () => {
 
     return (
         <div className="flex h-dvh flex-col overflow-hidden bg-[#f8fafc] text-slate-900">
+            {routeLoading && (
+                <WorkspaceLoadingScreen
+                    mode="overlay"
+                    title="Opening the next view"
+                    body="We are carrying your workspace state forward so the next page feels instant and consistent."
+                />
+            )}
             <a
                 href="#main"
                 className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-slate-900 focus:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"

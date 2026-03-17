@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, RefreshCw, User, Mic, Plus, Workflow, Cpu, MessageSquareText } from 'lucide-react';
+import { Bot, RefreshCw, User, Workflow, Cpu, MessageSquareText, SendHorizontal } from 'lucide-react';
 import { useBroadcast } from '../contexts/BroadcastContext';
 
 const formatFeedTimestamp = (value) => {
@@ -69,9 +69,6 @@ const Broadcast = () => {
         handleBroadcast
     } = useBroadcast();
 
-    const [isRecording, setIsRecording] = React.useState(false);
-    const recognitionRef = useRef(null);
-    const fileInputRef = useRef(null);
     const endRef = useRef(null);
 
     const scrollToBottom = (behavior = 'auto') => {
@@ -80,50 +77,11 @@ const Broadcast = () => {
         el.scrollIntoView({ behavior, block: 'end' });
     };
 
-    const toggleMic = () => {
-        if (isRecording) {
-            recognitionRef.current?.stop();
-            setIsRecording(false);
-        } else {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                alert('Speech recognition not supported in this browser.');
-                return;
-            }
-            const recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-
-            recognition.onstart = () => setIsRecording(true);
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                setMessage(prev => prev ? `${prev} ${transcript}` : transcript);
-            };
-            recognition.onerror = () => setIsRecording(false);
-            recognition.onend = () => setIsRecording(false);
-
-            recognitionRef.current = recognition;
-            recognition.start();
-        }
-    };
-
-    const handleFileClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (e) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            setMessage(prev => `${prev}[Attached: ${files[0].name}] `.trimStart());
-        }
-    };
-
     useEffect(() => {
         fetchRecent();
         const interval = setInterval(() => {
             if (createdIds.size === 0) fetchRecent();
-        }, 15_000);
+        }, 60_000);
         return () => clearInterval(interval);
     }, [createdIds.size, fetchRecent]);
 
@@ -132,7 +90,7 @@ const Broadcast = () => {
         fetchJobs();
         const interval = setInterval(() => {
             fetchJobs();
-        }, 10_000);
+        }, 30_000);
         return () => clearInterval(interval);
     }, [createdIds.size, fetchJobs]);
 
@@ -203,7 +161,7 @@ const Broadcast = () => {
 
     const feedMessages = createdIds.size > 0 ? narrationMessages : recentNarrationMessages;
     const feedLoading = createdIds.size > 0 ? loadingJobs : loadingRecent;
-    const feedTitle = createdIds.size > 0 ? `Tracking ${created.length} task(s)` : 'Recent activity';
+    const feedTitle = createdIds.size > 0 ? `Tracking ${created.length} run${created.length === 1 ? '' : 's'}` : 'Recent activity';
     const coordinationCount = feedMessages.filter((message) => getMessageKind(message) === 'coordination').length;
 
     useEffect(() => {
@@ -217,9 +175,9 @@ const Broadcast = () => {
                     <div className="border-b border-slate-100 bg-white px-8 py-5">
                         <div className="flex items-start justify-between gap-6">
                             <div>
-                                <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.3em] leading-none mb-2">Group Chat Feed</h2>
+                                <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.3em] leading-none mb-2">Team Activity</h2>
                                 <p className="text-[11px] text-slate-500 leading-relaxed max-w-2xl">
-                                    Follow manager notes, worker replies, and inter-agent coordination as tasks move through the system.
+                                    Follow manager notes, worker replies, and agent coordination as selected teammates work through a request.
                                 </p>
                             </div>
                             <button
@@ -335,52 +293,34 @@ const Broadcast = () => {
 
                     <div className="pointer-events-none absolute bottom-8 left-0 right-0 px-8">
                         <div className="mx-auto w-full max-w-4xl pointer-events-auto">
-                            <div className="group relative">
+                            <form className="group relative" onSubmit={(event) => handleBroadcast(event)}>
                                 <div className="absolute inset-0 rounded-[30px] bg-blue-500/5 blur-xl transition-all group-focus-within:bg-blue-500/10" />
-                                <div className="relative flex items-center rounded-[30px] border border-slate-200/80 bg-white p-1.5 pr-2 shadow-[0_10px_40px_rgba(0,0,0,0.06)] transition-all hover:shadow-[0_10px_50px_rgba(0,0,0,0.1)] group-focus-within:border-slate-300">
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                        multiple
-                                    />
-                                    <button
-                                        onClick={handleFileClick}
-                                        className="rounded-full p-2.5 text-slate-500 transition-colors hover:bg-slate-50"
-                                    >
-                                        <Plus className="h-5 w-5" strokeWidth={2.5} />
-                                    </button>
-                                    <input
-                                        type="text"
-                                        value={message}
-                                        onChange={(e) => setMessage(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleBroadcast()}
-                                        placeholder="Message the team and watch the coordination feed update…"
-                                        className="h-10 flex-1 border-none bg-transparent px-2 text-[15px] font-medium placeholder:text-slate-400 focus:ring-0"
-                                    />
-                                    <div className="flex items-center gap-0.5">
+                                <div className="relative rounded-[30px] border border-slate-200/80 bg-white px-4 py-3 shadow-[0_10px_40px_rgba(0,0,0,0.06)] transition-all hover:shadow-[0_10px_50px_rgba(0,0,0,0.1)] group-focus-within:border-slate-300">
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Send to selected agents</div>
+                                        <div className="text-[11px] text-slate-400">Replies and coordination notes will appear here.</div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="text"
+                                            value={message}
+                                            onChange={(e) => setMessage(e.target.value)}
+                                            placeholder="Ask the team to research, coordinate, or report back…"
+                                            className="h-11 flex-1 border-none bg-transparent px-1 text-[15px] font-medium placeholder:text-slate-400 focus:ring-0"
+                                        />
                                         <button
-                                            onClick={toggleMic}
-                                            className={`rounded-full p-2.5 transition-colors hover:bg-slate-50 ${isRecording ? 'animate-pulse bg-blue-50 text-blue-600' : 'text-slate-500'}`}
-                                        >
-                                            <Mic className="h-5 w-5" />
-                                        </button>
-                                        <button
-                                            onClick={handleBroadcast}
+                                            type="submit"
                                             disabled={sending || !message.trim()}
-                                            className="ml-1 flex items-center justify-center rounded-full bg-[#0A6BFF] p-2 text-white shadow-md transition-all hover:bg-blue-600 active:scale-90 disabled:opacity-100 disabled:shadow-none"
+                                            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#0A6BFF] text-white shadow-md transition-all hover:bg-blue-600 active:scale-95 disabled:opacity-60 disabled:shadow-none"
                                         >
-                                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="m5 12 7-7 7 7" /><path d="M12 19V5" />
-                                            </svg>
+                                            <SendHorizontal className="h-4.5 w-4.5" />
                                         </button>
                                     </div>
                                 </div>
-                            </div>
+                            </form>
                             <div className="mt-3 flex items-center gap-2 px-2 text-[11px] text-slate-500">
                                 <MessageSquareText className="h-3.5 w-3.5 text-slate-400" />
-                                Broadcast messages create tracked runs, so replies and coordination notes show up here as the agents work.
+                                This composer is the one place to prompt the selected team. The roster on the right controls recipients.
                             </div>
                         </div>
                     </div>

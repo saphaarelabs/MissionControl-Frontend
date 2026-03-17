@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiAuthFetch } from '../lib/apiBase';
-import { Send, Bot, User, Loader2, Zap, MessageSquare, CheckCircle2, FileText, Lightbulb, Bell, Search, Info } from 'lucide-react';
+import { Send, AlertTriangle, Bot, CheckCircle2, Cpu, MessageSquare, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -8,16 +8,7 @@ const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-b
 
 const FeedSidebar = ({ agentId = 'main' }) => {
     const [feedItems, setFeedItems] = useState([]);
-
-    const [activeFilter, setActiveFilter] = useState('All');
-    const filters = [
-        { name: 'All', count: null },
-        { name: 'Tasks', count: 0 },
-        { name: 'Comments', count: 0 },
-        { name: 'Decisions', count: 0 },
-        { name: 'Docs', count: 0 },
-        { name: 'Status', count: 0 },
-    ];
+    const [pulseSummary, setPulseSummary] = useState({ active: 0, review: 0, done: 0 });
 
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState([]);
@@ -70,6 +61,67 @@ const FeedSidebar = ({ agentId = 'main' }) => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const mapStatusTone = (status) => {
+            if (status === 'completed') return { label: 'Done', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> };
+            if (['blocked', 'awaiting_connection', 'awaiting_approval', 'failed'].includes(status)) {
+                return { label: 'Attention', icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> };
+            }
+            return { label: 'Active', icon: <Cpu className="h-3.5 w-3.5 text-blue-600" /> };
+        };
+
+        const toFeedItems = (jobs) => jobs
+            .slice(0, 14)
+            .map((job) => {
+                const status = job?.metadata?.status || job?.status || 'triage';
+                const note = job?.metadata?.lastDecision?.reason
+                    || job?.metadata?.lastRun?.summary
+                    || job?.metadata?.manager?.reason
+                    || job?.metadata?.message
+                    || 'No note yet.';
+                const tone = mapStatusTone(status);
+                return {
+                    id: job?.id,
+                    label: tone.label,
+                    time: job?.updatedAt ? new Date(job.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent',
+                    content: note,
+                    title: job?.name || job?.id || 'Task',
+                    icon: tone.icon,
+                };
+            });
+
+        const loadPulse = async () => {
+            try {
+                const response = await apiAuthFetch('/api/tasks?limit=40&includeNarrative=false&includeLog=false');
+                if (!response.ok) return;
+                const data = await response.json();
+                const jobs = Array.isArray(data.jobs) ? data.jobs : [];
+                if (cancelled) return;
+
+                setFeedItems(toFeedItems(jobs));
+                setPulseSummary({
+                    active: jobs.filter((job) => ['assigned', 'in_progress', 'triage', 'picked_up'].includes(job?.metadata?.status || job?.status)).length,
+                    review: jobs.filter((job) => ['blocked', 'awaiting_connection', 'awaiting_approval', 'failed'].includes(job?.metadata?.status || job?.status)).length,
+                    done: jobs.filter((job) => (job?.metadata?.status || job?.status) === 'completed').length,
+                });
+            } catch {
+                if (!cancelled) {
+                    setFeedItems([]);
+                    setPulseSummary({ active: 0, review: 0, done: 0 });
+                }
+            }
+        };
+
+        loadPulse();
+        const interval = setInterval(loadPulse, 60_000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, []);
 
     const handleSend = async (e) => {
         e.preventDefault();
@@ -124,36 +176,36 @@ const FeedSidebar = ({ agentId = 'main' }) => {
 
     return (
         <div className="h-full flex flex-col bg-white border-l border-slate-200 shadow-[-1px_0_3px_rgba(0,0,0,0.01)]">
-            {/* Header: Live Feed */}
             <div className="p-5 border-b border-slate-100 flex-shrink-0">
                 <div className="flex items-center gap-2 mb-4">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />
-                    <h2 className="text-[12px] font-extrabold text-slate-900 tracking-[0.25em] uppercase font-mono">Feed</h2>
+                    <h2 className="text-[12px] font-extrabold text-slate-900 tracking-[0.25em] uppercase font-mono">Ops Pulse</h2>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                    {filters.map((f) => (
-                        <button
-                            key={f.name}
-                            onClick={() => setActiveFilter(f.name)}
-                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 border ${activeFilter === f.name
-                                ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200'
-                                : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'
-                                }`}
-                        >
-                            {f.name}
-                            {f.count !== null && (
-                                <span className={`text-[10px] opacity-70 ${activeFilter === f.name ? 'text-white' : 'text-slate-400'}`}>
-                                    {f.count}
-                                </span>
-                            )}
-                        </button>
-                    ))}
+                <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">Active</div>
+                        <div className="mt-2 text-lg font-black text-slate-900">{pulseSummary.active}</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">Attention</div>
+                        <div className="mt-2 text-lg font-black text-slate-900">{pulseSummary.review}</div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <div className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-500">Done</div>
+                        <div className="mt-2 text-lg font-black text-slate-900">{pulseSummary.done}</div>
+                    </div>
                 </div>
             </div>
 
-            {/* Feed Scroll Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
+                {feedItems.length === 0 && (
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-white/80 px-4 py-10 text-center">
+                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">No recent task movement</div>
+                        <div className="mt-2 text-sm text-slate-500">As tasks route through the manager, the most important updates will appear here.</div>
+                    </div>
+                )}
+
                 {feedItems.map((item) => (
                     <div key={item.id} className="group relative pl-4 border-l-2 border-slate-100 pb-1">
                         <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-slate-100 flex items-center justify-center group-hover:border-blue-400 transition-colors">
@@ -163,17 +215,16 @@ const FeedSidebar = ({ agentId = 'main' }) => {
                             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{item.label}</span>
                             <span className="text-[9px] text-slate-300 font-medium">{item.time}</span>
                         </div>
+                        <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{item.title}</div>
                         <p className="text-[12px] text-slate-600 leading-relaxed font-medium">{item.content}</p>
                     </div>
                 ))}
             </div>
 
-            {/* Chat Area */}
             <div
                 className={`border-t border-slate-200 flex flex-col bg-white overflow-hidden relative ${!isResizing ? 'transition-[height] duration-200' : ''}`}
                 style={{ height: `${chatHeight}px`, maxHeight: '80%' }}
             >
-                {/* Vertical Resize Handle */}
                 <div
                     onMouseDown={startResizing}
                     className={`absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-50 hover:bg-blue-400/30 transition-colors ${isResizing ? 'bg-blue-500/20' : ''}`}
@@ -181,7 +232,7 @@ const FeedSidebar = ({ agentId = 'main' }) => {
 
                 <div className="p-3 border-b border-slate-50 bg-slate-50/20 flex items-center gap-2">
                     <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-[0.2em] font-mono">Agent Chat</span>
+                    <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-[0.2em] font-mono">Ask Main</span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth">

@@ -1,183 +1,143 @@
 import React from 'react';
+import { Check, Users, WandSparkles } from 'lucide-react';
 import { useBroadcast } from '../contexts/BroadcastContext';
-import { Send, Loader2, Check } from 'lucide-react';
 
-const FOCUS_RING = 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2';
+const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2';
 
-const BroadcastSidebar = () => {
-    const {
-        agents,
-        selectedAgents,
-        setSelectedAgents,
-        instruction,
-        setInstruction,
-        sending,
-        handleBroadcast
-    } = useBroadcast();
-    const onlineAgents = agents.filter(a => a.status === 'online');
+export default function BroadcastSidebar() {
+    const { agents, selectedAgents, setSelectedAgents } = useBroadcast();
+    const specialists = agents.filter((agent) => agent.id !== 'main');
+    const manager = agents.find((agent) => agent.id === 'main') || null;
+    const defaultTargets = specialists.length ? specialists : agents;
 
-    const handleSelectAll = (checked) => {
-        setSelectedAgents(checked ? onlineAgents.map(a => a.id) : []);
+    const toggleAgent = (agentId) => {
+        setSelectedAgents((previous) => (
+            previous.includes(agentId)
+                ? previous.filter((id) => id !== agentId)
+                : [...previous, agentId]
+        ));
     };
 
-    const handleAgentToggle = (agentId) => {
-        setSelectedAgents((prev) => prev.includes(agentId)
-            ? prev.filter(id => id !== agentId)
-            : [...prev, agentId]
-        );
-    };
-    const [taskHeight, setTaskHeight] = React.useState(() => {
-        const saved = localStorage.getItem('broadcastTaskHeight');
-        return saved ? parseInt(saved, 10) : 280;
-    });
-    const [isResizing, setIsResizing] = React.useState(false);
-
-    const startResizing = (e) => {
-        e.preventDefault();
-        setIsResizing(true);
-    };
-
-    const stopResizing = () => {
-        setIsResizing(false);
-    };
-
-    const resize = (e) => {
-        if (isResizing) {
-            const newHeight = window.innerHeight - e.clientY;
-            // Set limits: min 150px, max 70% of screen
-            if (newHeight >= 150 && newHeight <= window.innerHeight * 0.7) {
-                setTaskHeight(newHeight);
-                localStorage.setItem('broadcastTaskHeight', newHeight.toString());
-            }
+    const selectRoster = (mode) => {
+        if (mode === 'specialists') {
+            setSelectedAgents(specialists.map((agent) => agent.id));
+            return;
         }
+        if (mode === 'manager') {
+            setSelectedAgents(manager ? [manager.id] : []);
+            return;
+        }
+        setSelectedAgents(defaultTargets.map((agent) => agent.id));
     };
 
-    React.useEffect(() => {
-        if (isResizing) {
-            window.addEventListener('mousemove', resize);
-            window.addEventListener('mouseup', stopResizing);
-        } else {
-            window.removeEventListener('mousemove', resize);
-            window.removeEventListener('mouseup', stopResizing);
-        }
-        return () => {
-            window.removeEventListener('mousemove', resize);
-            window.removeEventListener('mouseup', stopResizing);
-        };
-    }, [isResizing]);
+    const roster = manager ? [manager, ...specialists] : agents;
 
     return (
-        <div className="flex flex-col h-full bg-white border-l border-slate-200">
-            {/* Top: Agents Live */}
-            <div className="flex-1 min-h-0 flex flex-col p-4">
-                <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-widest mb-4 flex-shrink-0 flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                    Agents Live
-                </h3>
+        <div className="flex h-full flex-col border-l border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-5 py-5">
+                <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                        <Users className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                        <div className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-900">Team Roster</div>
+                        <div className="mt-1 text-xs text-slate-500">Choose who should receive the next group prompt.</div>
+                    </div>
+                </div>
 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-1">
-                    <label className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-all group">
-                        <div className="relative flex items-center">
-                            <input
-                                type="checkbox"
-                                checked={onlineAgents.length > 0 && selectedAgents.length === onlineAgents.length}
-                                onChange={(e) => handleSelectAll(e.target.checked)}
-                                className="peer appearance-none w-4 h-4 rounded border border-slate-300 checked:bg-blue-600 checked:border-blue-600 transition-all"
-                            />
-                            <Check className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 left-0.5 pointer-events-none transition-opacity" />
-                        </div>
-                        <span className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest">Select All Online</span>
-                        <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                            {selectedAgents.length}/{onlineAgents.length}
-                        </span>
-                    </label>
-
-                    {onlineAgents.length === 0 ? (
-                        <div className="p-4 text-center">
-                            <p className="text-[11px] font-medium text-slate-400 italic">No agents online currently</p>
-                        </div>
-                    ) : (
-                        onlineAgents.map(agent => (
-                            <label
-                                key={agent.id}
-                                className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer transition-all border ${selectedAgents.includes(agent.id)
-                                    ? 'bg-blue-50/50 border-blue-100 shadow-sm'
-                                    : 'hover:bg-slate-50 border-transparent'
-                                    }`}
-                            >
-                                <div className="relative flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedAgents.includes(agent.id)}
-                                        onChange={() => handleAgentToggle(agent.id)}
-                                        className="peer appearance-none w-4 h-4 rounded border border-slate-300 checked:bg-blue-600 checked:border-blue-600 transition-all"
-                                    />
-                                    <Check className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 left-0.5 pointer-events-none transition-opacity" />
-                                </div>
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs border border-slate-200 shrink-0">
-                                        {agent.identity?.emoji || agent.id[0].toUpperCase()}
-                                    </div>
-                                    <span className="text-[12px] font-medium text-slate-700 truncate">
-                                        {agent.identity?.name || agent.id}
-                                    </span>
-                                </div>
-                                <div className="ml-auto flex items-center gap-1.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
-                                </div>
-                            </label>
-                        ))
-                    )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        onClick={() => selectRoster('all')}
+                        className={`rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-700 transition hover:bg-slate-50 ${FOCUS_RING}`}
+                    >
+                        All active
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => selectRoster('specialists')}
+                        className={`rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-700 transition hover:bg-slate-50 ${FOCUS_RING}`}
+                    >
+                        Specialists
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => selectRoster('manager')}
+                        className={`rounded-full border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-700 transition hover:bg-slate-50 ${FOCUS_RING}`}
+                    >
+                        Manager only
+                    </button>
                 </div>
             </div>
 
-            {/* Resizable Bottom: Task Instructions */}
-            <div
-                className={`relative border-t border-slate-200 p-4 bg-white flex flex-col ${!isResizing ? 'transition-[height] duration-200' : ''}`}
-                style={{ height: `${taskHeight}px` }}
-            >
-                {/* Vertical Resize Handle */}
-                <div
-                    onMouseDown={startResizing}
-                    className={`absolute -top-1 left-0 right-0 h-2 cursor-row-resize z-50 hover:bg-blue-400/30 transition-colors ${isResizing ? 'bg-blue-500/20' : ''}`}
-                />
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+                <div className="mb-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">How this works</div>
+                    <div className="mt-2 text-sm leading-6 text-slate-600">
+                        Send one prompt from the main composer. The selected agents receive it, and their replies and coordination notes stream into the center feed.
+                    </div>
+                </div>
 
-                <h3 className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest mb-3 flex-shrink-0">
-                    Task Instructions
-                </h3>
+                <div className="space-y-2">
+                    {roster.map((agent) => {
+                        const checked = selectedAgents.includes(agent.id);
+                        const isManager = agent.id === 'main';
+                        return (
+                            <label
+                                key={agent.id}
+                                className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition ${
+                                    checked
+                                        ? 'border-blue-200 bg-blue-50'
+                                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                                }`}
+                            >
+                                <div className="relative mt-1 flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={checked}
+                                        onChange={() => toggleAgent(agent.id)}
+                                        className="peer h-4 w-4 appearance-none rounded border border-slate-300 checked:border-blue-600 checked:bg-blue-600"
+                                    />
+                                    <Check className="pointer-events-none absolute left-0.5 h-3 w-3 text-white opacity-0 transition peer-checked:opacity-100" />
+                                </div>
 
-                <form id="task-form" onSubmit={handleBroadcast} className="flex-1 flex flex-col space-y-3 min-h-0">
-                    <textarea
-                        value={instruction}
-                        onChange={(e) => setInstruction(e.target.value)}
-                        className={`w-full flex-1 p-3 text-[13px] font-medium rounded-xl border border-slate-200 bg-slate-50 focus:bg-white transition-all resize-none shadow-inner ${FOCUS_RING}`}
-                        placeholder="Describe the task for the selected agents..."
-                    />
+                                <div className="flex min-w-0 flex-1 items-start gap-3">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700">
+                                        {agent.identity?.emoji || agent.id.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <div className="truncate text-sm font-bold text-slate-900">
+                                                {agent.identity?.name || agent.label || agent.id}
+                                            </div>
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] ${
+                                                isManager
+                                                    ? 'bg-slate-900 text-white'
+                                                    : 'bg-slate-100 text-slate-600'
+                                            }`}>
+                                                {isManager ? 'Manager' : 'Specialist'}
+                                            </span>
+                                        </div>
+                                        <div className="mt-1 truncate text-xs text-slate-500">{agent.id}</div>
+                                    </div>
+                                </div>
+                            </label>
+                        );
+                    })}
+                </div>
+            </div>
 
-                    <button
-                        type="submit"
-                        disabled={sending || selectedAgents.length === 0 || !instruction.trim()}
-                        className={`w-full shrink-0 flex items-center justify-center gap-2 py-3 rounded-xl font-extrabold text-[11px] uppercase tracking-widest shadow-lg transition-all ${!instruction.trim()
-                            ? 'bg-slate-100 text-slate-400 shadow-none'
-                            : 'bg-[#0A6BFF] text-white hover:bg-blue-700 shadow-blue-200 active:scale-95'
-                            } ${FOCUS_RING}`}
-                    >
-                        {sending ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>ASSIGNING...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Send className="w-4 h-4" />
-                                <span>ASSIGN TASK</span>
-                            </>
-                        )}
-                    </button>
-                </form>
+            <div className="border-t border-slate-100 px-5 py-4">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                        <WandSparkles className="h-3.5 w-3.5" />
+                        Selected now
+                    </div>
+                    <div className="mt-2 text-sm font-semibold text-slate-900">
+                        {selectedAgents.length} {selectedAgents.length === 1 ? 'agent' : 'agents'} will receive the next message.
+                    </div>
+                </div>
             </div>
         </div>
     );
-};
-
-export default BroadcastSidebar;
+}

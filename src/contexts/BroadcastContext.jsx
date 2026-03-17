@@ -15,7 +15,6 @@ export const BroadcastProvider = ({ children }) => {
     const [agents, setAgents] = useState([]);
     const [selectedAgents, setSelectedAgents] = useState([]);
     const [message, setMessage] = useState('');
-    const [instruction, setInstruction] = useState('');
     const [sending, setSending] = useState(false);
     const [created, setCreated] = useState([]);
     const [jobsById, setJobsById] = useState({});
@@ -75,23 +74,19 @@ export const BroadcastProvider = ({ children }) => {
 
     const handleBroadcast = async (e) => {
         if (e) e.preventDefault();
-        const isTask = e?.target?.id === 'task-form';
-        const content = isTask ? instruction : message;
         const targetAgents = selectedAgents.length > 0
             ? selectedAgents
             : (agents.filter((agent) => agent.id !== 'main').map((agent) => agent.id).length
                 ? agents.filter((agent) => agent.id !== 'main').map((agent) => agent.id)
                 : agents.map((agent) => agent.id));
-        if (!content.trim() || targetAgents.length === 0) return;
+        if (!message.trim() || targetAgents.length === 0) return;
 
         setSending(true);
         setCreated([]);
         setJobsById({});
 
         try {
-            const body = e?.target?.id === 'task-form'
-                ? { message: instruction, agentIds: targetAgents }
-                : { message, agentIds: targetAgents };
+            const body = { message, agentIds: targetAgents };
 
             const response = await apiAuthFetch('/api/broadcast', {
                 method: 'POST',
@@ -102,8 +97,7 @@ export const BroadcastProvider = ({ children }) => {
             const data = await response.json();
             if (!response.ok) throw new Error(data?.error || 'Broadcast failed');
             setCreated(Array.isArray(data.tasks) ? data.tasks : []);
-            if (e?.target?.id === 'task-form') setInstruction('');
-            else setMessage('');
+            setMessage('');
         } catch (error) {
             console.error('Broadcast failed:', error);
         } finally {
@@ -114,7 +108,7 @@ export const BroadcastProvider = ({ children }) => {
     useEffect(() => {
         if (isLoaded) {
             fetchAgents();
-            const interval = setInterval(fetchAgents, 30_000);
+            const interval = setInterval(fetchAgents, 60_000);
             return () => clearInterval(interval);
         }
     }, [isLoaded]);
@@ -125,8 +119,6 @@ export const BroadcastProvider = ({ children }) => {
         setSelectedAgents,
         message,
         setMessage,
-        instruction,
-        setInstruction,
         sending,
         created,
         createdIds,

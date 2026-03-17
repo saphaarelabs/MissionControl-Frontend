@@ -23,42 +23,42 @@ const TABS = [
     {
         id: 'models',
         label: 'Models',
-        description: 'Provider auth, enabled models, and primary routing.',
+        description: 'Providers, enabled models, and primary routing.',
         eyebrow: 'AI Routing',
         icon: BrainCircuit,
     },
     {
         id: 'integrations',
         label: 'Integrations',
-        description: 'Let each user connect their own Notion, GitHub, Slack, Gmail, and other app accounts.',
+        description: 'Per-user Notion, GitHub, Slack, Gmail, and more.',
         eyebrow: 'Apps',
         icon: PlugZap,
     },
     {
         id: 'channels',
         label: 'Channels',
-        description: 'External communication surfaces and live channel setup.',
+        description: 'External channels and setup state.',
         eyebrow: 'Comms',
         icon: MessageSquareMore,
     },
     {
         id: 'soul',
         label: 'SOUL.md',
-        description: 'Persistent operator guidance and behavioral instructions.',
+        description: 'Persistent operator guidance.',
         eyebrow: 'Identity',
         icon: ShieldCheck,
     },
     {
         id: 'workspace',
         label: 'Workspace File',
-        description: 'Edit files inside the OpenClaw workspace directly.',
+        description: 'Targeted file edits inside the workspace.',
         eyebrow: 'Workspace',
         icon: FolderKanban,
     },
     {
         id: 'openclaw',
         label: 'openclaw.json',
-        description: 'Advanced runtime configuration for the gateway and agents.',
+        description: 'Advanced runtime configuration.',
         eyebrow: 'Runtime',
         icon: FileCode2,
     }
@@ -98,25 +98,21 @@ const Settings = () => {
                         <div className="max-w-3xl">
                             <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Settings that read like a control surface</h1>
                             <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-[15px]">
-                                Manage model access, channels, workspace instructions, and runtime files from one place. The goal here is speed with enough structure that risky changes stay obvious.
+                                Models, integrations, channels, and advanced files in one place.
                             </p>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
                             <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Provider setup</div>
-                                <div className="mt-2 text-sm font-semibold text-slate-700">Auth, models, and primary routing</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Model routing</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">Auth, defaults, and fallbacks</div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">App integrations</div>
-                                <div className="mt-2 text-sm font-semibold text-slate-700">Per-user Notion, GitHub, Slack, Gmail, and more</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">App connections</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">User-owned tools and accounts</div>
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Channels</div>
-                                <div className="mt-2 text-sm font-semibold text-slate-700">Telegram, Slack, Discord, WhatsApp</div>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white/85 px-4 py-3">
-                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Advanced files</div>
-                                <div className="mt-2 text-sm font-semibold text-slate-700">SOUL.md, workspace files, runtime JSON</div>
+                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Advanced edits</div>
+                                <div className="mt-2 text-sm font-semibold text-slate-700">Channels, SOUL.md, workspace files</div>
                             </div>
                         </div>
                     </div>
@@ -128,7 +124,7 @@ const Settings = () => {
                     <div className="mb-4 px-2">
                         <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Sections</div>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Move between operational areas without losing context. The current section summary stays visible on the right.
+                            Jump between core operational areas.
                         </p>
                     </div>
 
@@ -169,9 +165,9 @@ const Settings = () => {
                     </div>
 
                     <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Good operating pattern</div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Recommended order</div>
                         <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Make model and channel changes here first, then use raw file editors only when you need a precise override.
+                            Start with models and integrations. Use raw file editors only for precise overrides.
                         </p>
                     </div>
                 </aside>
@@ -191,12 +187,12 @@ const Settings = () => {
                         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Current focus</div>
                             <div className="mt-1 text-sm font-semibold text-slate-700">
-                                {activeTab === 'models' && 'Set credentials first, then enable models, then save the primary route.'}
-                                {activeTab === 'integrations' && 'Connect user-owned apps first so tasks can route to real tools instead of blocking.'}
-                                {activeTab === 'channels' && 'Use direct channel setup here instead of editing gateway files by hand.'}
-                                {activeTab === 'soul' && 'Keep operator guidance clean and durable so future sessions stay consistent.'}
-                                {activeTab === 'workspace' && 'Use this for targeted workspace file edits without opening the terminal.'}
-                                {activeTab === 'openclaw' && 'Treat this as the final override layer when the UI does not cover a case.'}
+                                {activeTab === 'models' && 'Credentials, enabled models, then the primary route.'}
+                                {activeTab === 'integrations' && 'Connect user-owned apps before routing tasks into them.'}
+                                {activeTab === 'channels' && 'Configure channels here instead of editing runtime files.'}
+                                {activeTab === 'soul' && 'Keep persistent guidance concise and durable.'}
+                                {activeTab === 'workspace' && 'Use this for targeted file edits without opening the terminal.'}
+                                {activeTab === 'openclaw' && 'Use this only when the UI does not cover the case.'}
                             </div>
                         </div>
                     </div>
@@ -392,9 +388,9 @@ const IntegrationsTab = () => {
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">Per-user app connections</div>
-                            <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">Connect the user’s own accounts, not ours</h3>
+                            <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">Connect the user’s own accounts</h3>
                             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                                These integrations are scoped to the signed-in Mission Control user. Once connected, the manager and specialist agents can use the user’s own Notion, GitHub, Slack, Gmail, and other accounts when a workflow genuinely needs them.
+                                These integrations belong to the signed-in Mission Control user and stay scoped to that workspace.
                             </p>
                         </div>
                         <button
@@ -412,17 +408,17 @@ const IntegrationsTab = () => {
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Connected</div>
                         <div className="mt-2 text-2xl font-black text-slate-900">{summary.connected || 0}</div>
-                        <div className="mt-1 text-xs text-slate-500">Ready for agent use</div>
+                        <div className="mt-1 text-xs text-slate-500">Ready for workflows</div>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Pending</div>
                         <div className="mt-2 text-2xl font-black text-slate-900">{summary.pending || 0}</div>
-                        <div className="mt-1 text-xs text-slate-500">Waiting on user auth</div>
+                        <div className="mt-1 text-xs text-slate-500">Waiting on authorization</div>
                     </div>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                         <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Catalog</div>
                         <div className="mt-2 text-2xl font-black text-slate-900">{summary.total || items.length}</div>
-                        <div className="mt-1 text-xs text-slate-500">High-value apps to start</div>
+                        <div className="mt-1 text-xs text-slate-500">Apps available</div>
                     </div>
                 </div>
             </div>
