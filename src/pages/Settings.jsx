@@ -390,7 +390,7 @@ const IntegrationsTab = () => {
                             <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">Per-user app connections</div>
                             <h3 className="mt-2 text-xl font-black tracking-tight text-slate-900">Connect the user’s own accounts</h3>
                             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                                These integrations belong to the signed-in Mission Control user and stay scoped to that workspace.
+                                These integrations belong to the signed-in Mission Control user, stay scoped to that workspace, and are exposed to agents through Composio.
                             </p>
                         </div>
                         <button
@@ -421,6 +421,10 @@ const IntegrationsTab = () => {
                         <div className="mt-1 text-xs text-slate-500">Apps available</div>
                     </div>
                 </div>
+            </div>
+
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3 text-sm leading-6 text-blue-900">
+                After connecting or reconnecting an app here, retry the paused task from the review column so the agent can re-check the fresh Composio session.
             </div>
 
             {error && (
@@ -507,7 +511,7 @@ const IntegrationsTab = () => {
                                     {integration.isConnected && (
                                         <span className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700">
                                             <CheckCircle2 className="h-4 w-4" />
-                                            Ready for agent workflows
+                                            Ready for agent workflows via Composio
                                         </span>
                                     )}
                                 </div>
