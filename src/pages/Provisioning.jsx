@@ -12,7 +12,7 @@ import {
     ServerCog,
     ShieldAlert,
 } from 'lucide-react';
-import { apiAuthFetch, probeBackendHealth, probeControlPlaneHealth } from '../lib/apiBase';
+import { apiAuthFetch, controlPlaneAuthFetch, probeBackendHealth, probeControlPlaneHealth } from '../lib/apiBase';
 
 const STAGES = [
     {
@@ -99,12 +99,29 @@ export default function Provisioning() {
         const poll = async () => {
             while (!stopped) {
                 try {
-                    const res = await apiAuthFetch('/api/user/profile');
-                    if (res.ok) {
-                        const { profile } = await res.json();
-                        const status = profile?.operation_status || 'checking';
+                    let status = 'checking';
+                    let resolved = false;
+
+                    const runtimeRes = await controlPlaneAuthFetch('/api/runtime/status');
+                    if (runtimeRes.ok) {
+                        const { runtime } = await runtimeRes.json();
+                        status = runtime?.operationStatus || 'checking';
+                        resolved = true;
+                    }
+
+                    if (!resolved) {
+                        const res = await apiAuthFetch('/api/user/profile');
+                        if (res.ok) {
+                            const { profile } = await res.json();
+                            status = profile?.operation_status || 'checking';
+                            resolved = true;
+                        }
+                    }
+
+                    setLastCheckedAt(new Date());
+
+                    if (resolved) {
                         setProfileStatus(status);
-                        setLastCheckedAt(new Date());
 
                         if (status === 'ready') {
                             setCompleted(true);
@@ -116,8 +133,6 @@ export default function Provisioning() {
                             setError('Your account is suspended, so provisioning cannot continue until support resolves the account state.');
                             return;
                         }
-                    } else {
-                        setLastCheckedAt(new Date());
                     }
                 } catch (pollError) {
                     console.error('[provisioning] poll error:', pollError);

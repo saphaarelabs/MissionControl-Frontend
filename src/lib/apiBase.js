@@ -61,6 +61,30 @@ export async function apiAuthFetch(input, options = {}) {
     return res;
 }
 
+export async function controlPlaneAuthFetch(input, options = {}) {
+    const token = await getClerkJwt();
+    const headers = new Headers(options.headers || {});
+
+    if (token && !headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const target = typeof input === 'string' ? controlPlaneUrl(input) : input;
+    const method = (options.method || 'GET').toUpperCase();
+    const url = typeof target === 'string' ? target : String(target);
+
+    if (!token) {
+        console.warn(`[control-plane] ${method} ${url} - no Clerk JWT (Clerk not ready yet?)`);
+    }
+
+    const res = await fetch(target, { ...options, headers });
+
+    const flag = res.ok ? 'OK' : res.status >= 500 ? 'ERR' : 'WARN';
+    console.log(`[control-plane] ${flag} ${method} ${url} -> ${res.status}`);
+
+    return res;
+}
+
 export async function probeBackendHealth() {
     try {
         const res = await fetch(apiUrl('/api/health'));
