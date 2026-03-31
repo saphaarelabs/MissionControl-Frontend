@@ -12,7 +12,7 @@ import {
     ServerCog,
     ShieldAlert,
 } from 'lucide-react';
-import { apiAuthFetch, controlPlaneAuthFetch, probeBackendHealth, probeControlPlaneHealth, resolveWorkspaceRoute } from '../lib/apiBase';
+import { probeBackendHealth, probeControlPlaneHealth, resolveWorkspaceRoute } from '../lib/apiBase';
 
 const STAGES = [
     {
@@ -100,61 +100,28 @@ export default function Provisioning() {
         const poll = async () => {
             while (!stopped) {
                 try {
-                    let status = 'checking';
-                    let resolved = false;
-                    let healthStatus = '';
-
-                    const runtimeRes = await controlPlaneAuthFetch('/api/runtime/status');
-                    if (runtimeRes.ok) {
-                        const { runtime } = await runtimeRes.json();
-                        status = runtime?.operationStatus || 'checking';
-                        resolved = true;
-                    }
-
-                    if (!resolved) {
-                        const res = await apiAuthFetch('/api/user/profile');
-                        if (res.ok) {
-                            const { profile } = await res.json();
-                            status = profile?.operation_status || 'checking';
-                            resolved = true;
-                        }
-                    }
-
-                    if (resolved && status === 'ready') {
-                        const runtimeHealthRes = await controlPlaneAuthFetch('/api/runtime/health');
-                        if (runtimeHealthRes.ok) {
-                            const runtimeHealth = await runtimeHealthRes.json().catch(() => null);
-                            healthStatus = String(runtimeHealth?.status || '').trim().toLowerCase();
-                        }
-                    }
+                    const next = await resolveWorkspaceRoute();
+                    const status = next.status || 'checking';
 
                     setLastCheckedAt(new Date());
 
-                    if (resolved) {
-                        const displayStatus = status === 'ready' && healthStatus !== 'online'
-                            ? 'provisioning'
-                            : status;
-
-                        setProfileStatus(displayStatus);
-
-                        if (status === 'ready') {
-                            if (healthStatus === 'online') {
-                                setCompleted(true);
-                                setError('');
-                                return;
-                            }
-
-                            setCompleted(false);
-                            setError('');
-                        } else {
-                            setCompleted(false);
-                        }
-
-                        if (status === 'suspended') {
-                            setError('Your account is suspended, so provisioning cannot continue until support resolves the account state.');
-                            return;
-                        }
+                    if (status === 'suspended') {
+                        setCompleted(false);
+                        setProfileStatus('checking');
+                        setError('Your account is suspended, so provisioning cannot continue until support resolves the account state.');
+                        return;
                     }
+
+                    if (next.route === '/app') {
+                        setProfileStatus('ready');
+                        setCompleted(true);
+                        setError('');
+                        return;
+                    }
+
+                    setCompleted(false);
+                    setProfileStatus(status === 'ready' ? 'provisioning' : status);
+                    setError('');
                 } catch (pollError) {
                     console.error('[provisioning] poll error:', pollError);
                     setLastCheckedAt(new Date());
