@@ -40,7 +40,7 @@ const SignInPage = () => {
 
             if (result.status === 'complete') {
                 await setActive({ session: result.createdSessionId });
-                navigate('/app');
+                navigate('/sso-callback?oauth_complete=1&intent=sign-in', { replace: true });
                 return;
             }
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AuthenticateWithRedirectCallback, useUser } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiAuthFetch } from '../lib/apiBase';
+import { resolveWorkspaceRoute } from '../lib/apiBase';
 
 export default function SsoCallback() {
     const { isLoaded, isSignedIn, user } = useUser();
@@ -24,40 +24,10 @@ export default function SsoCallback() {
             await new Promise(resolve => setTimeout(resolve, 500));
 
             try {
-                // Check if user profile exists in our database
-                console.log('[SsoCallback] Fetching user profile from backend...');
-                const res = await apiAuthFetch('/api/user/profile');
-                
-                if (res.ok) {
-                    const { profile } = await res.json();
-                    console.log('[SsoCallback] Profile data:', profile);
-                    
-                    // If no profile or profile has no operation_status, they're new -> onboarding
-                    if (!profile || !profile.operation_status) {
-                        console.log('[SsoCallback] New user detected (no profile or no operation_status), redirecting to /onboarding');
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        navigate('/onboarding', { replace: true });
-                        return;
-                    }
-                    
-                    // If user has onboarding data but is still provisioning, go to provisioning page
-                    if (profile.operation_status === 'provisioning' || profile.operation_status === 'onboarded') {
-                        console.log('[SsoCallback] User is provisioning, redirecting to /provisioning');
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        navigate('/provisioning', { replace: true });
-                        return;
-                    }
-                    
-                    // Existing user with ready status -> dashboard
-                    console.log('[SsoCallback] Existing user with operation_status:', profile.operation_status, '-> redirecting to /app');
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    navigate('/app', { replace: true });
-                } else {
-                    // If profile fetch fails, assume new user
-                    console.log('[SsoCallback] Profile fetch failed with status:', res.status, '-> assuming new user');
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    navigate('/onboarding', { replace: true });
-                }
+                const next = await resolveWorkspaceRoute();
+                console.log('[SsoCallback] Workspace route resolution:', next);
+                window.history.replaceState({}, document.title, window.location.pathname);
+                navigate(next.route, { replace: true });
             } catch (err) {
                 console.error('[SsoCallback] Error checking user profile:', err);
                 // On error, go to onboarding to be safe

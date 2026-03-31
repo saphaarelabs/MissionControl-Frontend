@@ -120,3 +120,58 @@ export async function probeControlPlaneHealth() {
         };
     }
 }
+
+export async function resolveWorkspaceRoute() {
+    try {
+        const profileRes = await apiAuthFetch('/api/user/profile');
+        if (!profileRes.ok) {
+            return {
+                route: '/onboarding',
+                status: '',
+                reason: `profile_${profileRes.status}`,
+                profile: null,
+            };
+        }
+
+        const { profile } = await profileRes.json();
+        const status = profile?.operation_status || '';
+
+        if (!profile || !status) {
+            return { route: '/onboarding', status: '', reason: 'missing_profile', profile: profile || null };
+        }
+
+        if (status === 'suspended') {
+            return { route: '/app', status, reason: 'suspended', profile };
+        }
+
+        if (status === 'onboarded' || status === 'provisioning') {
+            return { route: '/provisioning', status, reason: status, profile };
+        }
+
+        if (status !== 'ready') {
+            return { route: '/onboarding', status, reason: `unexpected_${status}`, profile };
+        }
+
+        const healthRes = await apiAuthFetch('/api/health');
+        const health = await healthRes.json().catch(() => null);
+        const healthStatus = String(health?.status || '').trim().toLowerCase();
+
+        if (healthRes.ok && healthStatus === 'online') {
+            return { route: '/app', status, reason: 'ready_online', profile, health };
+        }
+
+        if (healthStatus === 'provisioning') {
+            return { route: '/provisioning', status, reason: 'ready_but_provisioning', profile, health };
+        }
+
+        return { route: '/provisioning', status, reason: healthStatus || `health_${healthRes.status}`, profile, health };
+    } catch (error) {
+        return {
+            route: '/onboarding',
+            status: '',
+            reason: 'exception',
+            error,
+            profile: null,
+        };
+    }
+}

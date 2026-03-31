@@ -15,7 +15,7 @@ import {
     User as UserIcon,
     Zap,
 } from 'lucide-react';
-import { apiAuthFetch } from '../lib/apiBase';
+import { apiAuthFetch, resolveWorkspaceRoute } from '../lib/apiBase';
 import WorkspaceLoadingScreen from '../components/WorkspaceLoadingScreen';
 
 const STEPS = [
@@ -150,19 +150,15 @@ export default function Onboarding() {
             if (!isLoaded || !user) return;
 
             try {
-                const res = await apiAuthFetch('/api/user/profile');
-                if (res.ok) {
-                    const { profile } = await res.json();
+                const next = await resolveWorkspaceRoute();
+                if (next.route === '/app') {
+                    navigate('/app', { replace: true });
+                    return;
+                }
 
-                    if (profile?.operation_status === 'ready') {
-                        navigate('/app', { replace: true });
-                        return;
-                    }
-
-                    if (profile?.operation_status === 'onboarded' || profile?.operation_status === 'provisioning') {
-                        navigate('/provisioning', { replace: true });
-                        return;
-                    }
+                if (next.route === '/provisioning') {
+                    navigate('/provisioning', { replace: true });
+                    return;
                 }
             } catch (error) {
                 console.error('[onboarding] failed to check profile status:', error);

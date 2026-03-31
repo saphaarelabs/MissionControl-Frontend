@@ -10,7 +10,7 @@ const Landing = () => {
     const loginState = location.state ? { from: location.state.from } : null;
 
     if (isLoaded && isSignedIn) {
-        return <Navigate to="/app" replace />;
+        return <Navigate to="/sso-callback?oauth_complete=1&intent=session" replace />;
     }
 
     return (

@@ -8,7 +8,7 @@ import FeedSidebar from './FeedSidebar';
 import BroadcastSidebar from './BroadcastSidebar';
 import AgentSettingsModal from './AgentSettingsModal';
 import WorkspaceLoadingScreen from './WorkspaceLoadingScreen';
-import { apiAuthFetch } from '../lib/apiBase';
+import { resolveWorkspaceRoute } from '../lib/apiBase';
 
 function AccessState({ title, body, actionLabel, onAction }) {
     return (
@@ -73,20 +73,15 @@ const Layout = () => {
         setAccessState((previous) => ({ ...previous, loading: true, error: '' }));
 
         try {
-            const res = await apiAuthFetch('/api/user/profile');
-            if (!res.ok) {
-                throw new Error(`Profile request failed with ${res.status}`);
-            }
+            const next = await resolveWorkspaceRoute();
+            const status = next.status || '';
 
-            const { profile } = await res.json();
-            const status = profile?.operation_status || '';
-
-            if (!profile || !status) {
+            if (next.route === '/onboarding') {
                 navigate('/onboarding', { replace: true });
                 return;
             }
 
-            if (status === 'onboarded' || status === 'provisioning') {
+            if (next.route === '/provisioning') {
                 navigate('/provisioning', { replace: true });
                 return;
             }

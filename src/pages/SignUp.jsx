@@ -60,7 +60,7 @@ const SignUpPage = () => {
             const result = await signUp.attemptEmailAddressVerification({ code });
             if (result.status === 'complete') {
                 await setActive({ session: result.createdSessionId });
-                navigate('/onboarding');
+                navigate('/sso-callback?oauth_complete=1&intent=sign-up', { replace: true });
                 return;
             }
             setError('Verification incomplete. Try again.');
