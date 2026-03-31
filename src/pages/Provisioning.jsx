@@ -12,7 +12,7 @@ import {
     ServerCog,
     ShieldAlert,
 } from 'lucide-react';
-import { apiAuthFetch, controlPlaneAuthFetch, probeBackendHealth, probeControlPlaneHealth } from '../lib/apiBase';
+import { apiAuthFetch, controlPlaneAuthFetch, probeBackendHealth, probeControlPlaneHealth, resolveWorkspaceRoute } from '../lib/apiBase';
 
 const STAGES = [
     {
@@ -85,6 +85,7 @@ export default function Provisioning() {
     const [profileStatus, setProfileStatus] = useState('checking');
     const [error, setError] = useState('');
     const [completed, setCompleted] = useState(false);
+    const [launching, setLaunching] = useState(false);
     const [lastCheckedAt, setLastCheckedAt] = useState(null);
     const [serviceStatus, setServiceStatus] = useState({
         backend: 'checking',
@@ -101,6 +102,7 @@ export default function Provisioning() {
                 try {
                     let status = 'checking';
                     let resolved = false;
+                    let healthStatus = '';
 
                     const runtimeRes = await controlPlaneAuthFetch('/api/runtime/status');
                     if (runtimeRes.ok) {
@@ -118,15 +120,34 @@ export default function Provisioning() {
                         }
                     }
 
+                    if (resolved && status === 'ready') {
+                        const runtimeHealthRes = await controlPlaneAuthFetch('/api/runtime/health');
+                        if (runtimeHealthRes.ok) {
+                            const runtimeHealth = await runtimeHealthRes.json().catch(() => null);
+                            healthStatus = String(runtimeHealth?.status || '').trim().toLowerCase();
+                        }
+                    }
+
                     setLastCheckedAt(new Date());
 
                     if (resolved) {
-                        setProfileStatus(status);
+                        const displayStatus = status === 'ready' && healthStatus !== 'online'
+                            ? 'provisioning'
+                            : status;
+
+                        setProfileStatus(displayStatus);
 
                         if (status === 'ready') {
-                            setCompleted(true);
+                            if (healthStatus === 'online') {
+                                setCompleted(true);
+                                setError('');
+                                return;
+                            }
+
+                            setCompleted(false);
                             setError('');
-                            return;
+                        } else {
+                            setCompleted(false);
                         }
 
                         if (status === 'suspended') {
@@ -148,6 +169,19 @@ export default function Provisioning() {
             stopped = true;
         };
     }, [authLoaded, userLoaded, user]);
+
+    const handleOpenWorkspace = async () => {
+        setLaunching(true);
+        try {
+            const next = await resolveWorkspaceRoute();
+            navigate(next.route, { replace: true });
+        } catch (launchError) {
+            console.error('[provisioning] dashboard handoff failed:', launchError);
+            setError('We could not confirm that the workspace is fully reachable yet. Give it another moment and retry.');
+        } finally {
+            setLaunching(false);
+        }
+    };
 
     useEffect(() => {
         let active = true;
@@ -261,11 +295,12 @@ export default function Provisioning() {
 
                                     <button
                                         type="button"
-                                        onClick={() => navigate('/app')}
-                                        className="mt-10 inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+                                        onClick={handleOpenWorkspace}
+                                        disabled={launching}
+                                        className="mt-10 inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                                     >
-                                        Go to dashboard
-                                        <ChevronRight className="h-4 w-4" />
+                                        {launching ? 'Opening workspace…' : 'Go to dashboard'}
+                                        {!launching && <ChevronRight className="h-4 w-4" />}
                                     </button>
                                 </motion.div>
                             ) : (
